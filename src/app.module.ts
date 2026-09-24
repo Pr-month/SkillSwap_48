@@ -7,12 +7,13 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { AppDataSource } from './ormconfig';
 import { dbConfig } from './config/db.config';
+import { appConfig } from './config/app.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [dbConfig],
+      load: [appConfig, dbConfig],
     }),
     TypeOrmModule.forRoot(AppDataSource.options),
     UsersModule,
