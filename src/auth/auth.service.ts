@@ -125,6 +125,14 @@ export class AuthService {
     };
   }
 
+  async logout(userId: string) {
+    await this.usersRepository.update(userId, {
+      refreshToken: null as unknown as string,
+    });
+
+    return { message: 'Вы вышли из аккаунта' };
+  }
+
   private async issueTokens(userId: string, email: string, role: UserRole) {
     const payload: JwtPayload = { sub: userId, email, role };
 

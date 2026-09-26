@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Inject,
   Post,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -18,6 +19,7 @@ import type { JwtPayload } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { AccessTokenGuard } from './guards/accessToken.guard';
 import { RefreshTokenGuard } from './guards/refreshToken.guard';
 
 @Controller('auth')
@@ -60,6 +62,19 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body() refreshDto: RefreshDto) {
     return this.authService.refresh(refreshDto);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard)
+  async logout(
+    @Req() req: { user: JwtPayload },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.logout(req.user.sub);
+    res.clearCookie(REFRESH_TOKEN_COOKIE, { path: '/' });
+
+    return result;
   }
 
   private setRefreshTokenCookie(res: Response, refreshToken: string) {

@@ -204,4 +204,12 @@ describe('AuthService', () => {
       UnauthorizedException,
     );
   });
+
+  it('clears the refresh token on logout', async () => {
+    await service.logout('user-id');
+
+    expect(usersRepository.update).toHaveBeenCalledWith('user-id', {
+      refreshToken: null,
+    });
+  });
 });

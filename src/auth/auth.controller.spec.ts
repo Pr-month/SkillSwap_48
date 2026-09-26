@@ -2,7 +2,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Response } from 'express';
 import { appConfig } from '../config/app.config';
-import { Gender } from '../users/users.enums';
+import { Gender, UserRole } from '../users/users.enums';
 import { REFRESH_TOKEN_COOKIE } from './auth.constants';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -15,6 +15,7 @@ describe('AuthController', () => {
     login: jest.Mock;
     register: jest.Mock;
     refresh: jest.Mock;
+    logout: jest.Mock;
   };
 
   const registerDto: RegisterDto = {
@@ -37,6 +38,7 @@ describe('AuthController', () => {
       login: jest.fn(),
       register: jest.fn(),
       refresh: jest.fn(),
+      logout: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -137,5 +139,22 @@ describe('AuthController', () => {
       'refresh-token',
       expect.objectContaining({ httpOnly: true }),
     );
+  });
+
+  it('logs out, clears the refresh token and the cookie', async () => {
+    authService.logout.mockResolvedValue({ message: 'Вы вышли из аккаунта' });
+    const clearCookie = jest.fn();
+    const res = { clearCookie } as unknown as Response;
+    const req = {
+      user: { sub: 'user-id', email: 'user@example.com', role: UserRole.USER },
+    };
+
+    const result = await controller.logout(req, res);
+
+    expect(authService.logout).toHaveBeenCalledWith('user-id');
+    expect(clearCookie).toHaveBeenCalledWith(REFRESH_TOKEN_COOKIE, {
+      path: '/',
+    });
+    expect(result).toEqual({ message: 'Вы вышли из аккаунта' });
   });
 });
