@@ -157,4 +157,32 @@ describe('AuthController', () => {
     });
     expect(result).toEqual({ message: 'Вы вышли из аккаунта' });
   });
+
+  it('refreshes tokens and sets a new refresh cookie', async () => {
+    authService.refresh.mockResolvedValue({
+      accessToken: 'new-access-token',
+      refreshToken: 'new-refresh-token',
+    });
+    const cookie = jest.fn();
+    const res = { cookie } as unknown as Response;
+    const req = {
+      user: {
+        sub: 'user-id',
+        email: 'user@example.com',
+        role: UserRole.USER,
+        refreshToken: 'refresh-token',
+      },
+    };
+
+    const result = await controller.refresh(req, res);
+
+    expect(authService.refresh).toHaveBeenCalledWith(req.user);
+    expect(result).toEqual({ accessToken: 'new-access-token' });
+    expect(result).not.toHaveProperty('refreshToken');
+    expect(cookie).toHaveBeenCalledWith(
+      REFRESH_TOKEN_COOKIE,
+      'new-refresh-token',
+      expect.objectContaining({ httpOnly: true }),
+    );
+  });
 });

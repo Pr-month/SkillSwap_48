@@ -14,10 +14,9 @@ import { jwtConfig } from '../config/jwt.config';
 import type { TJwtConfig } from '../config/jwt.config';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/users.enums';
-import type { JwtPayload } from './auth.types';
+import type { JwtPayload, RefreshTokenPayload } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { RefreshDto } from './dto/refresh.dto';
 
 @Injectable()
 export class AuthService {
@@ -118,17 +117,38 @@ export class AuthService {
     }
   }
 
-  refresh(refreshDto: RefreshDto) {
-    return {
-      message: 'This action refreshes a token',
-      token: refreshDto,
-    };
+  async refresh(authUser: RefreshTokenPayload) {
+    const user = await this.usersRepository.findOne({
+      where: { id: authUser.sub },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        refreshToken: true,
+      },
+    });
+
+    if (!user?.refreshToken || !authUser.refreshToken) {
+      throw new UnauthorizedException('Невалидный refresh-токен');
+    }
+
+    const matches = await bcrypt.compare(
+      authUser.refreshToken,
+      user.refreshToken,
+    );
+
+    if (!matches) {
+      throw new UnauthorizedException('Невалидный refresh-токен');
+    }
+
+    const tokens = await this.issueTokens(user.id, user.email, user.role);
+    await this.persistRefreshToken(user.id, tokens.refreshToken);
+
+    return tokens;
   }
 
   async logout(userId: string) {
-    await this.usersRepository.update(userId, {
-      refreshToken: null as unknown as string,
-    });
+    await this.usersRepository.update(userId, { refreshToken: null });
 
     return { message: 'Вы вышли из аккаунта' };
   }

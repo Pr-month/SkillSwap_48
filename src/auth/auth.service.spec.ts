@@ -212,4 +212,66 @@ describe('AuthService', () => {
       refreshToken: null,
     });
   });
+
+  it('refreshes tokens with a valid refresh token', async () => {
+    const refreshTokenHash = await bcrypt.hash('refresh-token', 4);
+    usersRepository.findOne.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.USER,
+      refreshToken: refreshTokenHash,
+    });
+
+    const result = await service.refresh({
+      sub: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.USER,
+      refreshToken: 'refresh-token',
+    });
+
+    expect(usersRepository.findOne).toHaveBeenCalledWith({
+      where: { id: 'user-id' },
+      select: { id: true, email: true, role: true, refreshToken: true },
+    });
+    expect(usersRepository.update).toHaveBeenCalledTimes(1);
+    expect(result.accessToken).toBe('token');
+    expect(result.refreshToken).toBe('token');
+  });
+
+  it('throws UnauthorizedException when the stored refresh token is missing', async () => {
+    usersRepository.findOne.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.USER,
+      refreshToken: null,
+    });
+
+    await expect(
+      service.refresh({
+        sub: 'user-id',
+        email: 'user@example.com',
+        role: UserRole.USER,
+        refreshToken: 'refresh-token',
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('throws UnauthorizedException when the refresh token does not match', async () => {
+    const refreshTokenHash = await bcrypt.hash('other-token', 4);
+    usersRepository.findOne.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.USER,
+      refreshToken: refreshTokenHash,
+    });
+
+    await expect(
+      service.refresh({
+        sub: 'user-id',
+        email: 'user@example.com',
+        role: UserRole.USER,
+        refreshToken: 'refresh-token',
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
 });
