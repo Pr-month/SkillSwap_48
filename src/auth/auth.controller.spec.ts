@@ -6,6 +6,7 @@ import { Gender } from '../users/users.enums';
 import { REFRESH_TOKEN_COOKIE } from './auth.constants';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
 describe('AuthController', () => {
@@ -24,6 +25,11 @@ describe('AuthController', () => {
     birthdate: '1995-05-20',
     city: 'Москва',
     gender: Gender.MALE,
+  };
+
+  const loginDto: LoginDto = {
+    email: 'user@example.com',
+    password: 'password123',
   };
 
   async function createController(isProduction: boolean) {
@@ -107,6 +113,29 @@ describe('AuthController', () => {
       REFRESH_TOKEN_COOKIE,
       'refresh-token',
       expect.objectContaining({ secure: true }),
+    );
+  });
+
+  it('logs in and sets the refresh cookie without returning it in the body', async () => {
+    authService.login.mockResolvedValue({
+      user: { id: 'user-id', email: 'user@example.com' },
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    });
+    const cookie = jest.fn();
+    const res = { cookie } as unknown as Response;
+
+    const result = await controller.login(loginDto, res);
+
+    expect(result).toEqual({
+      user: { id: 'user-id', email: 'user@example.com' },
+      accessToken: 'access-token',
+    });
+    expect(result).not.toHaveProperty('refreshToken');
+    expect(cookie).toHaveBeenCalledWith(
+      REFRESH_TOKEN_COOKIE,
+      'refresh-token',
+      expect.objectContaining({ httpOnly: true }),
     );
   });
 });

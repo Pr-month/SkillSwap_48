@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -10,6 +10,7 @@ import { User } from '../users/entities/user.entity';
 import { Gender, UserRole } from '../users/users.enums';
 import { AuthService } from './auth.service';
 import type { JwtPayload } from './auth.types';
+import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
 describe('AuthService', () => {
@@ -30,6 +31,11 @@ describe('AuthService', () => {
     birthdate: '1995-05-20',
     city: 'Москва',
     gender: Gender.MALE,
+  };
+
+  const loginDto: LoginDto = {
+    email: 'User@Example.com',
+    password: 'password123',
   };
 
   beforeEach(async () => {
@@ -130,6 +136,72 @@ describe('AuthService', () => {
 
     await expect(service.register(registerDto)).rejects.toBeInstanceOf(
       ConflictException,
+    );
+  });
+
+  it('logs in a user and returns tokens', async () => {
+    const passwordHash = await bcrypt.hash('password123', 4);
+    usersRepository.findOne.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      password: passwordHash,
+      name: 'Иван',
+      about: 'Немного о себе',
+      birthdate: '1995-05-20',
+      city: 'Москва',
+      gender: Gender.MALE,
+      avatar: '',
+      role: UserRole.USER,
+    });
+
+    const result = await service.login(loginDto);
+
+    expect(usersRepository.findOne).toHaveBeenCalledWith({
+      where: { email: 'user@example.com' },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        name: true,
+        about: true,
+        birthdate: true,
+        city: true,
+        gender: true,
+        avatar: true,
+        role: true,
+      },
+    });
+    expect(usersRepository.update).toHaveBeenCalledTimes(1);
+    expect(result.accessToken).toBe('token');
+    expect(result.refreshToken).toBe('token');
+    expect(result.user).toEqual(
+      expect.objectContaining({ id: 'user-id', email: 'user@example.com' }),
+    );
+    expect(result.user).not.toHaveProperty('password');
+    expect(result.user).not.toHaveProperty('refreshToken');
+  });
+
+  it('throws UnauthorizedException on wrong password', async () => {
+    const passwordHash = await bcrypt.hash('other-password', 4);
+    usersRepository.findOne.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      password: passwordHash,
+      name: 'Иван',
+      role: UserRole.USER,
+    });
+
+    await expect(service.login(loginDto)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(usersRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('throws UnauthorizedException for unknown email', async () => {
+    usersRepository.findOne.mockResolvedValue(null);
+
+    await expect(service.login(loginDto)).rejects.toBeInstanceOf(
+      UnauthorizedException,
     );
   });
 });

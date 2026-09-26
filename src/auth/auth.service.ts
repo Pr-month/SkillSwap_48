@@ -1,4 +1,9 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
@@ -26,10 +31,36 @@ export class AuthService {
     private readonly app: TAppConfig,
   ) {}
 
-  login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto) {
+    const user = await this.usersRepository.findOne({
+      where: { email: loginDto.email.toLowerCase() },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        name: true,
+        about: true,
+        birthdate: true,
+        city: true,
+        gender: true,
+        avatar: true,
+        role: true,
+      },
+    });
+
+    const passwordValid =
+      !!user && (await bcrypt.compare(loginDto.password, user.password));
+
+    if (!user || !passwordValid) {
+      throw new UnauthorizedException('Неверный email или пароль');
+    }
+
+    const tokens = await this.issueTokens(user.id, user.email, user.role);
+    await this.persistRefreshToken(user.id, tokens.refreshToken);
+
     return {
-      message: 'This action logs in a user',
-      user: loginDto,
+      user: this.toPublicUser(user),
+      ...tokens,
     };
   }
 
