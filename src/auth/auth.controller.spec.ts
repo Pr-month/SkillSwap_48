@@ -1,20 +1,112 @@
+import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Response } from 'express';
+import { appConfig } from '../config/app.config';
+import { Gender } from '../users/users.enums';
+import { REFRESH_TOKEN_COOKIE } from './auth.constants';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { RegisterDto } from './dto/register.dto';
 
 describe('AuthController', () => {
   let controller: AuthController;
+  let authService: {
+    login: jest.Mock;
+    register: jest.Mock;
+    refresh: jest.Mock;
+  };
 
-  beforeEach(async () => {
+  const registerDto: RegisterDto = {
+    name: 'Иван',
+    email: 'user@example.com',
+    password: 'password123',
+    about: 'Немного о себе',
+    birthdate: '1995-05-20',
+    city: 'Москва',
+    gender: Gender.MALE,
+  };
+
+  async function createController(isProduction: boolean) {
+    const service = {
+      login: jest.fn(),
+      register: jest.fn(),
+      refresh: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [AuthService],
+      providers: [
+        { provide: AuthService, useValue: service },
+        {
+          provide: JwtService,
+          useValue: {
+            decode: jest.fn().mockReturnValue({ exp: 1700000000 }),
+          },
+        },
+        {
+          provide: appConfig.KEY,
+          useValue: { port: 3000, hashSalt: 10, isProduction },
+        },
+      ],
     }).compile();
 
-    controller = module.get<AuthController>(AuthController);
+    return {
+      controller: module.get<AuthController>(AuthController),
+      service,
+    };
+  }
+
+  beforeEach(async () => {
+    ({ controller, service: authService } = await createController(false));
   });
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('sets the refresh token as an httpOnly cookie and omits it from the body', async () => {
+    authService.register.mockResolvedValue({
+      user: { id: 'user-id', email: 'user@example.com' },
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    });
+    const cookie = jest.fn();
+    const res = { cookie } as unknown as Response;
+
+    const result = await controller.register(registerDto, res);
+
+    expect(result).toEqual({
+      user: { id: 'user-id', email: 'user@example.com' },
+      accessToken: 'access-token',
+    });
+    expect(result).not.toHaveProperty('refreshToken');
+    expect(cookie).toHaveBeenCalledWith(
+      REFRESH_TOKEN_COOKIE,
+      'refresh-token',
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'lax',
+        expires: new Date(1700000000 * 1000),
+      }),
+    );
+  });
+
+  it('marks the refresh cookie as secure in production', async () => {
+    const prod = await createController(true);
+    prod.service.register.mockResolvedValue({
+      user: { id: 'user-id', email: 'user@example.com' },
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    });
+    const cookie = jest.fn();
+    const res = { cookie } as unknown as Response;
+
+    await prod.controller.register(registerDto, res);
+
+    expect(cookie).toHaveBeenCalledWith(
+      REFRESH_TOKEN_COOKIE,
+      'refresh-token',
+      expect.objectContaining({ secure: true }),
+    );
   });
 });
