@@ -3,11 +3,18 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { Request } from 'express';
+import { REFRESH_TOKEN_COOKIE } from '../auth.constants';
 import { jwtConfig } from '../../config/jwt.config';
 import type { TJwtConfig } from '../../config/jwt.config';
-import { JwtPayload } from '../auth.types';
+import type { JwtPayload, RefreshTokenPayload } from '../auth.types';
 
-export type RefreshTokenPayload = JwtPayload & { refreshToken: string };
+function extractRefreshToken(req: Request): string | null {
+  const { cookies } = req as unknown as {
+    cookies?: Record<string, string>;
+  };
+
+  return cookies?.[REFRESH_TOKEN_COOKIE] ?? null;
+}
 
 @Injectable()
 export class RefreshTokenStrategy extends PassportStrategy(
@@ -18,7 +25,9 @@ export class RefreshTokenStrategy extends PassportStrategy(
     const jwt = config.getOrThrow<TJwtConfig>(jwtConfig.KEY);
 
     super({
-      jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req: Request) => extractRefreshToken(req),
+      ]),
       ignoreExpiration: false,
       secretOrKey: jwt.refreshSecret,
       passReqToCallback: true,
@@ -26,7 +35,7 @@ export class RefreshTokenStrategy extends PassportStrategy(
   }
 
   validate(req: Request, payload: JwtPayload): RefreshTokenPayload {
-    const { refreshToken } = req.body as { refreshToken: string };
+    const refreshToken = extractRefreshToken(req) ?? '';
 
     return { ...payload, refreshToken };
   }
