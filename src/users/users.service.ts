@@ -1,32 +1,65 @@
-import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
+import { Repository } from 'typeorm';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
-  create(createUserDto: CreateUserDto) {
-    return {
-      message: 'This action adds a new user',
-      user: createUserDto,
-    };
+  constructor(
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
+  ) {}
+
+  async findAll(): Promise<User[]> {
+    return this.usersRepository.find({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        about: true,
+        birthdate: true,
+        city: true,
+        gender: true,
+        avatar: true,
+        role: true,
+      },
+    });
   }
 
-  findAll() {
-    return `This action returns all users`;
+  async findMe(id: string): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+    return user;
   }
 
-  findOne(id: string) {
-    return `This action returns a #${id} user`;
+  async updateMe(id: string, dto: UpdateUserDto): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+    Object.assign(user, dto);
+    return this.usersRepository.save(user);
   }
 
-  update(id: string, updateUserDto: UpdateUserDto) {
-    return {
-      message: `This action updates a #${id} user`,
-      user: updateUserDto,
-    };
-  }
-
-  remove(id: string) {
-    return `This action removes a #${id} user`;
+  async updatePassword(id: string, dto: UpdatePasswordDto): Promise<void> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+    const matches = await bcrypt.compare(dto.oldPassword, user.password);
+    if (!matches) {
+      throw new UnauthorizedException('Неверный старый пароль');
+    }
+    user.password = await bcrypt.hash(dto.newPassword, 10);
+    await this.usersRepository.save(user);
   }
 }
