@@ -1,42 +1,51 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
-  Body,
+  HttpCode,
+  HttpStatus,
   Patch,
-  Param,
-  Delete,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
+import type { Request } from 'express';
+import { AccessTokenGuard } from '../auth/guards/accessToken.guard';
+import type { JwtPayload } from '../auth/auth.types';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UsersService } from './users.service';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
-
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
-  }
 
   @Get()
   findAll() {
     return this.usersService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
+  @UseGuards(AccessTokenGuard)
+  @Get('me')
+  getMe(@Req() req: Request & { user: JwtPayload }) {
+    return this.usersService.findMe(req.user.sub);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
+  @UseGuards(AccessTokenGuard)
+  @Patch('me')
+  updateMe(
+    @Req() req: Request & { user: JwtPayload },
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.usersService.updateMe(req.user.sub, dto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  @UseGuards(AccessTokenGuard)
+  @Patch('me/password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  updatePassword(
+    @Req() req: Request & { user: JwtPayload },
+    @Body() dto: UpdatePasswordDto,
+  ) {
+    return this.usersService.updatePassword(req.user.sub, dto);
   }
 }
