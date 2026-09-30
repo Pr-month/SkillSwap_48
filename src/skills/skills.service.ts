@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
+import { GetSkillsDto } from './dto/get-skills.dto';
 
 @Injectable()
 export class SkillsService {
@@ -9,8 +10,9 @@ export class SkillsService {
     return 'This action adds a new skill';
   }
 
-  findAll() {
-    return `This action returns all skills`;
+  findAll(query: GetSkillsDto) {
+    const { page, limit } = query;
+    return `This action returns skills (page: ${page}, limit: ${limit})`;
   }
 
   findOne(id: number) {
