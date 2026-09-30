@@ -6,7 +6,12 @@ import {
   Patch,
   Param,
   Delete,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
+import { AccessTokenGuard } from '../auth/guards/accessToken.guard';
+import type { JwtPayload } from '../auth/auth.types';
 import { SkillsService } from './skills.service';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
@@ -35,8 +40,9 @@ export class SkillsController {
     return this.skillsService.update(+id, updateSkillDto);
   }
 
+  @UseGuards(AccessTokenGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.skillsService.remove(+id);
+  remove(@Param('id') id: string, @Req() req: Request & { user: JwtPayload }) {
+    return this.skillsService.remove(+id, req.user.sub);
   }
 }

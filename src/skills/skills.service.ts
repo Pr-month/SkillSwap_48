@@ -22,7 +22,7 @@ export class SkillsService {
     return `This action updates a #${id} skill`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} skill`;
+  remove(id: number, userId: string) {
+    return `This action removes a #${id} skill owned by user ${userId}`;
   }
 }
