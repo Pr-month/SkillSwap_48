@@ -4,6 +4,7 @@ import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { appConfig } from './config/app.config';
 import type { TAppConfig } from './config/app.config';
+import { AllExceptionFilter } from './common/filters/all-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -18,6 +19,7 @@ async function bootstrap() {
     }),
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalFilters(new AllExceptionFilter());
 
   await app.listen(config.port);
 }
