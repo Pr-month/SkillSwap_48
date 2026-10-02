@@ -9,7 +9,6 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import type { Response } from 'express';
 import { appConfig } from '../config/app.config';
 import type { TAppConfig } from '../config/app.config';
@@ -25,7 +24,6 @@ import { RefreshTokenGuard } from './guards/refreshToken.guard';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly jwtService: JwtService,
     @Inject(appConfig.KEY)
     private readonly app: TAppConfig,
   ) {}
@@ -39,7 +37,15 @@ export class AuthController {
     const { user, accessToken, refreshToken } =
       await this.authService.login(loginDto);
 
-    this.setRefreshTokenCookie(res, refreshToken);
+    const expires = this.authService.getRefreshTokenExpiration(refreshToken);
+
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: this.app.isProduction,
+      path: '/',
+      ...(expires && { expires }),
+    });
 
     return { user, accessToken };
   }
@@ -52,7 +58,15 @@ export class AuthController {
     const { user, accessToken, refreshToken } =
       await this.authService.register(registerDto);
 
-    this.setRefreshTokenCookie(res, refreshToken);
+    const expires = this.authService.getRefreshTokenExpiration(refreshToken);
+
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: this.app.isProduction,
+      path: '/',
+      ...(expires && { expires }),
+    });
 
     return { user, accessToken };
   }
@@ -68,7 +82,15 @@ export class AuthController {
       req.user,
     );
 
-    this.setRefreshTokenCookie(res, refreshToken);
+    const expires = this.authService.getRefreshTokenExpiration(refreshToken);
+
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: this.app.isProduction,
+      path: '/',
+      ...(expires && { expires }),
+    });
 
     return { accessToken };
   }
@@ -84,19 +106,5 @@ export class AuthController {
     res.clearCookie(REFRESH_TOKEN_COOKIE, { path: '/' });
 
     return result;
-  }
-
-  private setRefreshTokenCookie(res: Response, refreshToken: string) {
-    const payload = this.jwtService.decode<JwtPayload & { exp?: number }>(
-      refreshToken,
-    );
-
-    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: this.app.isProduction,
-      path: '/',
-      ...(payload?.exp ? { expires: new Date(payload.exp * 1000) } : {}),
-    });
   }
 }

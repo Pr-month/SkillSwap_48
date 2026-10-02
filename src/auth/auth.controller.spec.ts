@@ -1,4 +1,3 @@
-import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Response } from 'express';
 import { appConfig } from '../config/app.config';
@@ -39,18 +38,15 @@ describe('AuthController', () => {
       register: jest.fn(),
       refresh: jest.fn(),
       logout: jest.fn(),
+      getRefreshTokenExpiration: jest
+        .fn()
+        .mockReturnValue(new Date(1700000000 * 1000)),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
         { provide: AuthService, useValue: service },
-        {
-          provide: JwtService,
-          useValue: {
-            decode: jest.fn().mockReturnValue({ exp: 1700000000 }),
-          },
-        },
         {
           provide: appConfig.KEY,
           useValue: { port: 3000, hashSalt: 10, isProduction },

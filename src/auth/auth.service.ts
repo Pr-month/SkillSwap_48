@@ -153,6 +153,14 @@ export class AuthService {
     return { message: 'Вы вышли из аккаунта' };
   }
 
+  getRefreshTokenExpiration(refreshToken: string): Date | null {
+    const payload = this.jwtService.decode<JwtPayload & { exp?: number }>(
+      refreshToken,
+    );
+
+    return payload?.exp ? new Date(payload.exp * 1000) : null;
+  }
+
   private async issueTokens(userId: string, email: string, role: UserRole) {
     const payload: JwtPayload = { sub: userId, email, role };
 
