@@ -6,10 +6,18 @@ import {
   Patch,
   Param,
   Delete,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { SkillsService } from './skills.service';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
+import { AccessTokenGuard } from '../auth/guards/accessToken.guard';
+
+interface RequestWithUser extends Request {
+  user: { sub: number; email: string };
+}
 
 @Controller('skills')
 export class SkillsController {
@@ -31,8 +39,13 @@ export class SkillsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateSkillDto: UpdateSkillDto) {
-    return this.skillsService.update(+id, updateSkillDto);
+  @UseGuards(AccessTokenGuard)
+  update(
+    @Param('id') id: string,
+    @Body() updateSkillDto: UpdateSkillDto,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.skillsService.update(+id, updateSkillDto, req.user.sub);
   }
 
   @Delete(':id')
