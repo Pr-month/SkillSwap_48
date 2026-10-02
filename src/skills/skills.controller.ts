@@ -6,6 +6,9 @@ import {
   Patch,
   Param,
   Delete,
+  HttpCode,
+  HttpStatus,
+  ParseUUIDPipe,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -42,7 +45,11 @@ export class SkillsController {
 
   @UseGuards(AccessTokenGuard)
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: Request & { user: JwtPayload }) {
-    return this.skillsService.remove(+id, req.user.sub);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.skillsService.remove(id, req.user.sub);
   }
 }
