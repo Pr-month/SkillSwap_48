@@ -7,6 +7,7 @@ import { join } from 'path';
 import { AppModule } from './app.module';
 import { appConfig } from './config/app.config';
 import type { TAppConfig } from './config/app.config';
+import { AllExceptionFilter } from './common/filters/all-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -21,6 +22,7 @@ async function bootstrap() {
     }),
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalFilters(new AllExceptionFilter());
 
   const publicDir = join(process.cwd(), 'public');
   const uploadsDir = join(publicDir, 'uploads');
