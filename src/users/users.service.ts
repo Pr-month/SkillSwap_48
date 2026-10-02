@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -6,6 +7,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import { appConfig } from '../config/app.config';
+import type { TAppConfig } from '../config/app.config';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -15,6 +18,8 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    @Inject(appConfig.KEY)
+    private readonly app: TAppConfig,
   ) {}
 
   async findAll(): Promise<User[]> {
@@ -59,7 +64,7 @@ export class UsersService {
     if (!matches) {
       throw new UnauthorizedException('Неверный старый пароль');
     }
-    user.password = await bcrypt.hash(dto.newPassword, 10);
+    user.password = await bcrypt.hash(dto.newPassword, this.app.hashSalt);
     await this.usersRepository.save(user);
   }
 }

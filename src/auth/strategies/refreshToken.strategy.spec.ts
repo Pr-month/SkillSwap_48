@@ -1,17 +1,15 @@
-import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
+import type { TJwtConfig } from '../../config/jwt.config';
 import { UserRole } from '../../users/users.enums';
 import { RefreshTokenStrategy } from './refreshToken.strategy';
 
 describe('RefreshTokenStrategy', () => {
-  const config = {
-    getOrThrow: () => ({
-      accessSecret: 'access-secret',
-      refreshSecret: 'refresh-secret',
-      accessExpiresIn: '1h',
-      refreshExpiresIn: '7d',
-    }),
-  } as unknown as ConfigService;
+  const config: TJwtConfig = {
+    accessSecret: 'access-secret',
+    refreshSecret: 'refresh-secret',
+    accessExpiresIn: '1h',
+    refreshExpiresIn: '7d',
+  };
 
   const payload = {
     sub: 'user-id',
