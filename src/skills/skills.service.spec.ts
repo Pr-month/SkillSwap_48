@@ -1,12 +1,21 @@
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Skill } from './entities/skill.entity';
 import { SkillsService } from './skills.service';
 
 describe('SkillsService', () => {
   let service: SkillsService;
+  const skillsRepository = { findOne: jest.fn(), remove: jest.fn() };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SkillsService],
+      providers: [
+        SkillsService,
+        { provide: getRepositoryToken(Skill), useValue: skillsRepository },
+      ],
     }).compile();
 
     service = module.get<SkillsService>(SkillsService);
@@ -14,5 +23,41 @@ describe('SkillsService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('remove', () => {
+    it('deletes the skill when requested by its owner', async () => {
+      const skill = { id: 'skill-1', owner: { id: 'user-1' } };
+      skillsRepository.findOne.mockResolvedValue(skill);
+
+      await service.remove('skill-1', 'user-1');
+
+      expect(skillsRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 'skill-1' },
+        relations: { owner: true },
+      });
+      expect(skillsRepository.remove).toHaveBeenCalledWith(skill);
+    });
+
+    it('throws NotFoundException when the skill does not exist', async () => {
+      skillsRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.remove('skill-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(skillsRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException when the skill belongs to another user', async () => {
+      skillsRepository.findOne.mockResolvedValue({
+        id: 'skill-1',
+        owner: { id: 'user-2' },
+      });
+
+      await expect(service.remove('skill-1', 'user-1')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(skillsRepository.remove).not.toHaveBeenCalled();
+    });
   });
 });
