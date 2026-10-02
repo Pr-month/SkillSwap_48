@@ -1,6 +1,14 @@
 import { Exclude } from 'class-transformer';
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinTable,
+  ManyToMany,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Gender, UserRole } from '../users.enums';
+import { Skill } from '../../skills/entities/skill.entity';
 
 @Entity('users')
 export class User {
@@ -32,19 +40,27 @@ export class User {
   @Column({ type: 'text' })
   avatar!: string;
 
-  // TODO: Когда появится Skill переделать связь и тип
-  //@OneToMany(() => Skill, (skill) => skill.user) //
-  skills!: string[];
+  @OneToMany(() => Skill, (skill) => skill.owner)
+  skills!: Skill[];
 
   // TODO: Когда появится Category переделать связь и тип
   //@ManyToMany(() => Category)
   //@JoinTable()
   wantToLearn!: string[];
 
-  // TODO: Когда появится Skill переделать связь и тип
-  //@ManyToMany(() => Skill)
-  //@JoinTable()
-  favoriteSkills!: string[];
+  @ManyToMany(() => Skill)
+  @JoinTable({
+    name: 'user_favorite_skills',
+    joinColumn: {
+      name: 'user_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'skill_id',
+      referencedColumnName: 'id',
+    },
+  })
+  favoriteSkills!: Skill[];
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role!: UserRole;
