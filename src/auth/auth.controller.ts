@@ -14,7 +14,7 @@ import { appConfig } from '../config/app.config';
 import type { TAppConfig } from '../config/app.config';
 import { REFRESH_TOKEN_COOKIE } from './auth.constants';
 import { AuthService } from './auth.service';
-import type { JwtPayload, RefreshTokenPayload } from './auth.types';
+import type { AuthRequest, RefreshTokenPayload } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AccessTokenGuard } from './guards/accessToken.guard';
@@ -99,7 +99,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenGuard)
   async logout(
-    @Req() req: { user: JwtPayload },
+    @Req() req: AuthRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.logout(req.user.sub);
