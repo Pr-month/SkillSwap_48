@@ -17,9 +17,12 @@ export class SkillsService {
     private readonly skillsRepository: Repository<Skill>,
   ) {}
 
-  create(createSkillDto: CreateSkillDto) {
-    void createSkillDto;
-    return 'This action adds a new skill';
+  create(createSkillDto: CreateSkillDto, ownerId: string): Promise<Skill> {
+    const skill = this.skillsRepository.create({
+      ...createSkillDto,
+      owner: { id: ownerId },
+    });
+    return this.skillsRepository.save(skill);
   }
 
   async findAll({ page = 1, limit = 10 }: GetSkillsDto) {

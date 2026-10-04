@@ -11,6 +11,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { AccessTokenGuard } from '../auth/guards/accessToken.guard';
+import type { JwtPayload } from '../auth/auth.types';
 import { SkillsService } from './skills.service';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
@@ -25,9 +27,13 @@ interface RequestWithUser extends Request {
 export class SkillsController {
   constructor(private readonly skillsService: SkillsService) {}
 
+  @UseGuards(AccessTokenGuard)
   @Post()
-  create(@Body() createSkillDto: CreateSkillDto) {
-    return this.skillsService.create(createSkillDto);
+  create(
+    @Body() createSkillDto: CreateSkillDto,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.skillsService.create(createSkillDto, req.user.sub);
   }
 
   @Get()
