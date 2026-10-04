@@ -5,7 +5,8 @@ import { SkillsService } from './skills.service';
 
 describe('SkillsService', () => {
   let service: SkillsService;
-  const skillsRepository = { create: jest.fn(), save: jest.fn() };
+  const skillsRepository = { create: jest.fn(), save: jest.fn(),findAndCount: jest.fn() };
+
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -40,5 +41,24 @@ describe('SkillsService', () => {
     expect(skillsRepository.create).toHaveBeenCalledWith(entity);
     expect(skillsRepository.save).toHaveBeenCalledWith(entity);
     expect(result).toBe(saved);
+  })
+  it('findAll paginates skills via skip/take', async () => {
+    const skills = [{ id: 'a' }, { id: 'b' }];
+    skillsRepository.findAndCount.mockResolvedValue([skills, 25]);
+
+    const result = await service.findAll({ page: 3, limit: 10 });
+
+    expect(skillsRepository.findAndCount).toHaveBeenCalledWith({
+      order: { id: 'ASC' },
+      skip: 20,
+      take: 10,
+    });
+    expect(result).toEqual({
+      data: skills,
+      page: 3,
+      limit: 10,
+      total: 25,
+      totalPages: 3,
+    });
   });
 });
