@@ -6,6 +6,9 @@ import {
   Patch,
   Param,
   Delete,
+  HttpCode,
+  HttpStatus,
+  ParseUUIDPipe,
   Query,
   Req,
   UseGuards,
@@ -56,8 +59,13 @@ export class SkillsController {
     return this.skillsService.update(+id, updateSkillDto, req.user.sub);
   }
 
+  @UseGuards(AccessTokenGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.skillsService.remove(+id);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.skillsService.remove(id, req.user.sub);
   }
 }
