@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import type { Request } from 'express';
 import { SkillsService } from './skills.service';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
+import { GetSkillsDto } from './dto/get-skills.dto';
 import { AccessTokenGuard } from '../auth/guards/accessToken.guard';
 
 interface RequestWithUser extends Request {
@@ -29,8 +31,8 @@ export class SkillsController {
   }
 
   @Get()
-  findAll() {
-    return this.skillsService.findAll();
+  findAll(@Query() query: GetSkillsDto) {
+    return this.skillsService.findAll(query);
   }
 
   @Get(':id')
