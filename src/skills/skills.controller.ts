@@ -20,11 +20,6 @@ import { SkillsService } from './skills.service';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
 import { GetSkillsDto } from './dto/get-skills.dto';
-import { AccessTokenGuard } from '../auth/guards/accessToken.guard';
-
-interface RequestWithUser extends Request {
-  user: { sub: number; email: string };
-}
 
 @Controller('skills')
 export class SkillsController {
@@ -52,11 +47,11 @@ export class SkillsController {
   @Patch(':id')
   @UseGuards(AccessTokenGuard)
   update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateSkillDto: UpdateSkillDto,
-    @Req() req: RequestWithUser,
+    @Req() req: Request & { user: JwtPayload },
   ) {
-    return this.skillsService.update(+id, updateSkillDto, req.user.sub);
+    return this.skillsService.update(id, updateSkillDto, req.user.sub);
   }
 
   @UseGuards(AccessTokenGuard)

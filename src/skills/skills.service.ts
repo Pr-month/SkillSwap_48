@@ -46,19 +46,20 @@ export class SkillsService {
   }
 
   async update(
-    id: number,
+    id: string,
     updateSkillDto: UpdateSkillDto,
-    userId: number,
+    userId: string,
   ): Promise<Skill> {
-    const skill = await this.skillsRepository.findOne({ where: { id } });
+    const skill = await this.skillsRepository.findOne({
+      where: { id },
+      relations: { owner: true },
+    });
 
     if (!skill) {
       throw new NotFoundException(`Skill with id ${id} not found`);
     }
 
-    // TODO: убрать `as any` после мержа skill.entity (задача axeliriya)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if ((skill as any).owner?.id !== userId) {
+    if (skill.owner?.id !== userId) {
       throw new ForbiddenException('You can only update your own skills');
     }
 
