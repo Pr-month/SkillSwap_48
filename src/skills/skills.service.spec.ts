@@ -37,7 +37,12 @@ describe('SkillsService', () => {
       description: 'Научу играть аккорды',
       category: '6f1c1f3e-6c1a-4d3b-9a43-2d6a5c1e9b10',
     };
-    const entity = { ...dto, owner: { id: 'user-1' } };
+    const entity = {
+      title: dto.title,
+      description: dto.description,
+      category: { id: dto.category },
+      owner: { id: 'user-1' },
+    };
     const saved = { id: 'skill-1', ...entity };
     skillsRepository.create.mockReturnValue(entity);
     skillsRepository.save.mockResolvedValue(saved);
