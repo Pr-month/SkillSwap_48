@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
+import { Category } from '../../categories/entities/category.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('skills')
@@ -19,11 +20,11 @@ export class Skill {
   @Column({ type: 'text' })
   description!: string;
 
-  // TODO: После создания Category заменить на связь ManyToOne
-  //@ManyToOne(() => Category, { nullable: false })
-  //@JoinColumn({ name: 'category_id' }) вместо @Column({ name: 'category_id', type: 'uuid' })
-  @Column({ name: 'category_id', type: 'uuid' })
-  category!: string;
+  @ManyToOne(() => Category, (category) => category.skills, {
+    nullable: false,
+  })
+  @JoinColumn({ name: 'category_id' })
+  category!: Category;
 
   @Column({ type: 'text', array: true, default: () => "'{}'" })
   images!: string[];

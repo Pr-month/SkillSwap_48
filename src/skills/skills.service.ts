@@ -9,6 +9,7 @@ import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
 import { GetSkillsDto } from './dto/get-skills.dto';
 import { Skill } from './entities/skill.entity';
+import { Category } from '../categories/entities/category.entity';
 
 @Injectable()
 export class SkillsService {
@@ -18,8 +19,10 @@ export class SkillsService {
   ) {}
 
   create(createSkillDto: CreateSkillDto, ownerId: string): Promise<Skill> {
+    const { category, ...rest } = createSkillDto;
     const skill = this.skillsRepository.create({
-      ...createSkillDto,
+      ...rest,
+      category: { id: category },
       owner: { id: ownerId },
     });
     return this.skillsRepository.save(skill);
@@ -46,23 +49,28 @@ export class SkillsService {
   }
 
   async update(
-    id: number,
+    id: string,
     updateSkillDto: UpdateSkillDto,
-    userId: number,
+    userId: string,
   ): Promise<Skill> {
-    const skill = await this.skillsRepository.findOne({ where: { id } });
+    const skill = await this.skillsRepository.findOne({
+      where: { id },
+      relations: { owner: true },
+    });
 
     if (!skill) {
       throw new NotFoundException(`Skill with id ${id} not found`);
     }
 
-    // TODO: убрать `as any` после мержа skill.entity (задача axeliriya)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if ((skill as any).owner?.id !== userId) {
+    if (skill.owner?.id !== userId) {
       throw new ForbiddenException('You can only update your own skills');
     }
 
-    Object.assign(skill, updateSkillDto);
+    const { category, ...rest } = updateSkillDto;
+    Object.assign(skill, rest);
+    if (category) {
+      skill.category = { id: category } as Category;
+    }
     return this.skillsRepository.save(skill);
   }
 

@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Gender, UserRole } from '../users.enums';
 import { Skill } from '../../skills/entities/skill.entity';
+import { Category } from '../../categories/entities/category.entity';
 
 @Entity('users')
 export class User {
@@ -43,10 +44,19 @@ export class User {
   @OneToMany(() => Skill, (skill) => skill.owner)
   skills!: Skill[];
 
-  // TODO: Когда появится Category переделать связь и тип
-  //@ManyToMany(() => Category)
-  //@JoinTable()
-  wantToLearn!: string[];
+  @ManyToMany(() => Category)
+  @JoinTable({
+    name: 'user_want_to_learn',
+    joinColumn: {
+      name: 'user_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'category_id',
+      referencedColumnName: 'id',
+    },
+  })
+  wantToLearn!: Category[];
 
   @ManyToMany(() => Skill)
   @JoinTable({
