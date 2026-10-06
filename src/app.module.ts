@@ -5,10 +5,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-import { AppDataSource } from './ormconfig';
 import { dbConfig } from './config/db.config';
+import type { TDbConfig } from './config/db.config';
 import { appConfig } from './config/app.config';
 import { jwtConfig } from './config/jwt.config';
+import { SkillsModule } from './skills/skills.module';
+import { FilesModule } from './files/files.module';
 
 @Module({
   imports: [
@@ -16,9 +18,14 @@ import { jwtConfig } from './config/jwt.config';
       isGlobal: true,
       load: [appConfig, dbConfig, jwtConfig],
     }),
-    TypeOrmModule.forRoot(AppDataSource.options),
+    TypeOrmModule.forRootAsync({
+      inject: [dbConfig.KEY],
+      useFactory: (config: TDbConfig) => config,
+    }),
     UsersModule,
     AuthModule,
+    SkillsModule,
+    FilesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -9,13 +9,12 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import type { Response } from 'express';
 import { appConfig } from '../config/app.config';
 import type { TAppConfig } from '../config/app.config';
 import { REFRESH_TOKEN_COOKIE } from './auth.constants';
 import { AuthService } from './auth.service';
-import type { JwtPayload, RefreshTokenPayload } from './auth.types';
+import type { AuthRequest, RefreshTokenPayload } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AccessTokenGuard } from './guards/accessToken.guard';
@@ -25,7 +24,6 @@ import { RefreshTokenGuard } from './guards/refreshToken.guard';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly jwtService: JwtService,
     @Inject(appConfig.KEY)
     private readonly app: TAppConfig,
   ) {}
@@ -39,7 +37,15 @@ export class AuthController {
     const { user, accessToken, refreshToken } =
       await this.authService.login(loginDto);
 
-    this.setRefreshTokenCookie(res, refreshToken);
+    const expires = this.authService.getRefreshTokenExpiration(refreshToken);
+
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: this.app.isProduction,
+      path: '/',
+      ...(expires && { expires }),
+    });
 
     return { user, accessToken };
   }
@@ -52,7 +58,15 @@ export class AuthController {
     const { user, accessToken, refreshToken } =
       await this.authService.register(registerDto);
 
-    this.setRefreshTokenCookie(res, refreshToken);
+    const expires = this.authService.getRefreshTokenExpiration(refreshToken);
+
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: this.app.isProduction,
+      path: '/',
+      ...(expires && { expires }),
+    });
 
     return { user, accessToken };
   }
@@ -68,7 +82,15 @@ export class AuthController {
       req.user,
     );
 
-    this.setRefreshTokenCookie(res, refreshToken);
+    const expires = this.authService.getRefreshTokenExpiration(refreshToken);
+
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: this.app.isProduction,
+      path: '/',
+      ...(expires && { expires }),
+    });
 
     return { accessToken };
   }
@@ -77,26 +99,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenGuard)
   async logout(
-    @Req() req: { user: JwtPayload },
+    @Req() req: AuthRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.logout(req.user.sub);
     res.clearCookie(REFRESH_TOKEN_COOKIE, { path: '/' });
 
     return result;
-  }
-
-  private setRefreshTokenCookie(res: Response, refreshToken: string) {
-    const payload = this.jwtService.decode<JwtPayload & { exp?: number }>(
-      refreshToken,
-    );
-
-    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: this.app.isProduction,
-      path: '/',
-      ...(payload?.exp ? { expires: new Date(payload.exp * 1000) } : {}),
-    });
   }
 }

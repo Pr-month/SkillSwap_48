@@ -54,8 +54,7 @@ export class AuthService {
       throw new UnauthorizedException('Неверный email или пароль');
     }
 
-    const tokens = await this.issueTokens(user.id, user.email, user.role);
-    await this.persistRefreshToken(user.id, tokens.refreshToken);
+    const tokens = await this.createSession(user);
 
     return {
       user: this.toPublicUser(user),
@@ -91,13 +90,7 @@ export class AuthService {
 
       const savedUser = await this.usersRepository.save(user);
 
-      const tokens = await this.issueTokens(
-        savedUser.id,
-        savedUser.email,
-        savedUser.role,
-      );
-
-      await this.persistRefreshToken(savedUser.id, tokens.refreshToken);
+      const tokens = await this.createSession(savedUser);
 
       return {
         user: this.toPublicUser(savedUser),
@@ -141,8 +134,7 @@ export class AuthService {
       throw new UnauthorizedException('Невалидный refresh-токен');
     }
 
-    const tokens = await this.issueTokens(user.id, user.email, user.role);
-    await this.persistRefreshToken(user.id, tokens.refreshToken);
+    const tokens = await this.createSession(user);
 
     return tokens;
   }
@@ -151,6 +143,21 @@ export class AuthService {
     await this.usersRepository.update(userId, { refreshToken: null });
 
     return { message: 'Вы вышли из аккаунта' };
+  }
+
+  getRefreshTokenExpiration(refreshToken: string): Date | null {
+    const payload = this.jwtService.decode<JwtPayload & { exp?: number }>(
+      refreshToken,
+    );
+
+    return payload?.exp ? new Date(payload.exp * 1000) : null;
+  }
+
+  private async createSession(user: User) {
+    const tokens = await this.issueTokens(user.id, user.email, user.role);
+    await this.persistRefreshToken(user.id, tokens.refreshToken);
+
+    return tokens;
   }
 
   private async issueTokens(userId: string, email: string, role: UserRole) {
