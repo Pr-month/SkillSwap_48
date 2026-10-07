@@ -10,12 +10,14 @@ import { UpdateSkillDto } from './dto/update-skill.dto';
 import { GetSkillsDto } from './dto/get-skills.dto';
 import { Skill } from './entities/skill.entity';
 import { Category } from '../categories/entities/category.entity';
+import { FilesService } from '../files/files.service';
 
 @Injectable()
 export class SkillsService {
   constructor(
     @InjectRepository(Skill)
     private readonly skillsRepository: Repository<Skill>,
+    private readonly filesService: FilesService,
   ) {}
 
   create(createSkillDto: CreateSkillDto, ownerId: string): Promise<Skill> {
@@ -86,5 +88,6 @@ export class SkillsService {
       throw new ForbiddenException('Удалить можно только свой навык');
     }
     await this.skillsRepository.remove(skill);
+    await this.filesService.removeFiles(skill.images ?? []);
   }
 }
