@@ -55,6 +55,16 @@ export class SkillsController {
   }
 
   @UseGuards(AccessTokenGuard)
+  @Post(':id/favorite')
+  @HttpCode(HttpStatus.OK)
+  addFavorite(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.skillsService.addFavorite(id, req.user.sub);
+  }
+
+  @UseGuards(AccessTokenGuard)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(
