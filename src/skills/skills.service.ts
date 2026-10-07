@@ -12,6 +12,7 @@ import { GetSkillsDto } from './dto/get-skills.dto';
 import { Skill } from './entities/skill.entity';
 import { User } from '../users/entities/user.entity';
 import { Category } from '../categories/entities/category.entity';
+import { FilesService } from '../files/files.service';
 
 @Injectable()
 export class SkillsService {
@@ -20,6 +21,7 @@ export class SkillsService {
     private readonly skillsRepository: Repository<Skill>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    private readonly filesService: FilesService,
   ) {}
 
   create(createSkillDto: CreateSkillDto, ownerId: string): Promise<Skill> {
@@ -90,6 +92,7 @@ export class SkillsService {
       throw new ForbiddenException('Удалить можно только свой навык');
     }
     await this.skillsRepository.remove(skill);
+    await this.filesService.removeFiles(skill.images ?? []);
   }
 
   async addFavorite(skillId: string, userId: string): Promise<Skill> {

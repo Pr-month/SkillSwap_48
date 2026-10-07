@@ -10,6 +10,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { randomUUID } from 'crypto';
+import { UPLOADS_DIR } from './files.constants';
 import { FilesService } from './files.service';
 
 @Controller('files')
@@ -20,7 +21,7 @@ export class FilesController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './public/uploads',
+        destination: UPLOADS_DIR,
         filename: (_req, file, callback) => {
           const uniqueName = randomUUID();
           const ext = extname(file.originalname);
