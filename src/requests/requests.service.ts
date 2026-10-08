@@ -1,0 +1,52 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Skill } from '../skills/entities/skill.entity';
+import { CreateRequestDto } from './dto/create-request.dto';
+import { Request } from './entities/request.entity';
+
+@Injectable()
+export class RequestsService {
+  constructor(
+    @InjectRepository(Request)
+    private readonly requestsRepository: Repository<Request>,
+    @InjectRepository(Skill)
+    private readonly skillsRepository: Repository<Skill>,
+  ) {}
+
+  async create(dto: CreateRequestDto, senderId: string): Promise<Request> {
+    const offeredSkill = await this.findSkillWithOwner(dto.offeredSkillId);
+    if (offeredSkill.owner?.id !== senderId) {
+      throw new ForbiddenException('Предлагать можно только свой навык');
+    }
+
+    const requestedSkill = await this.findSkillWithOwner(dto.requestedSkillId);
+    if (requestedSkill.owner?.id === senderId) {
+      throw new BadRequestException('Нельзя отправить заявку самому себе');
+    }
+
+    const request = this.requestsRepository.create({
+      sender: { id: senderId },
+      receiver: { id: requestedSkill.owner.id },
+      offeredSkill: { id: offeredSkill.id },
+      requestedSkill: { id: requestedSkill.id },
+    });
+    return this.requestsRepository.save(request);
+  }
+
+  private async findSkillWithOwner(id: string): Promise<Skill> {
+    const skill = await this.skillsRepository.findOne({
+      where: { id },
+      relations: { owner: true },
+    });
+    if (!skill) {
+      throw new NotFoundException(`Навык ${id} не найден`);
+    }
+    return skill;
+  }
+}
