@@ -13,9 +13,8 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import type { Request } from 'express';
 import { AccessTokenGuard } from '../auth/guards/accessToken.guard';
-import type { JwtPayload } from '../auth/auth.types';
+import type { AuthRequest } from '../auth/auth.types';
 import { SkillsService } from './skills.service';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
@@ -27,10 +26,7 @@ export class SkillsController {
 
   @UseGuards(AccessTokenGuard)
   @Post()
-  create(
-    @Body() createSkillDto: CreateSkillDto,
-    @Req() req: Request & { user: JwtPayload },
-  ) {
+  create(@Body() createSkillDto: CreateSkillDto, @Req() req: AuthRequest) {
     return this.skillsService.create(createSkillDto, req.user.sub);
   }
 
@@ -49,18 +45,22 @@ export class SkillsController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateSkillDto: UpdateSkillDto,
-    @Req() req: Request & { user: JwtPayload },
+    @Req() req: AuthRequest,
   ) {
     return this.skillsService.update(id, updateSkillDto, req.user.sub);
   }
 
   @UseGuards(AccessTokenGuard)
+  @Post(':id/favorite')
+  @HttpCode(HttpStatus.OK)
+  addFavorite(@Param('id', ParseUUIDPipe) id: string, @Req() req: AuthRequest) {
+    return this.skillsService.addFavorite(id, req.user.sub);
+  }
+
+  @UseGuards(AccessTokenGuard)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: Request & { user: JwtPayload },
-  ) {
+  remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: AuthRequest) {
     return this.skillsService.remove(id, req.user.sub);
   }
 }
