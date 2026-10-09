@@ -17,6 +17,7 @@ describe('RequestsService', () => {
     create: jest.fn(),
     save: jest.fn(),
     find: jest.fn(),
+    findOne: jest.fn(),
   };
   const skillsRepository = { findOne: jest.fn() };
 
@@ -106,6 +107,87 @@ describe('RequestsService', () => {
     await expect(service.create(dto, 'sender-1')).rejects.toThrow(
       BadRequestException,
     );
+    expect(requestsRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('update accepts an incoming request and marks it read', async () => {
+    const request = {
+      id: 'request-1',
+      status: RequestStatus.PENDING,
+      isRead: false,
+      receiver: { id: 'receiver-1' },
+    };
+    requestsRepository.findOne.mockResolvedValue(request);
+    requestsRepository.save.mockImplementation((entity: unknown) => entity);
+
+    const result = await service.update(
+      'request-1',
+      { status: RequestStatus.ACCEPTED },
+      'receiver-1',
+    );
+
+    expect(requestsRepository.findOne).toHaveBeenCalledWith({
+      where: { id: 'request-1' },
+      relations: {
+        sender: true,
+        receiver: true,
+        offeredSkill: true,
+        requestedSkill: true,
+      },
+    });
+    expect(requestsRepository.save).toHaveBeenCalledWith(request);
+    expect(result).toMatchObject({
+      status: RequestStatus.ACCEPTED,
+      isRead: true,
+    });
+  });
+
+  it('update marks a rejected request read as well', async () => {
+    requestsRepository.findOne.mockResolvedValue({
+      id: 'request-1',
+      status: RequestStatus.PENDING,
+      isRead: false,
+      receiver: { id: 'receiver-1' },
+    });
+    requestsRepository.save.mockImplementation((entity: unknown) => entity);
+
+    const result = await service.update(
+      'request-1',
+      { status: RequestStatus.REJECTED },
+      'receiver-1',
+    );
+
+    expect(result).toMatchObject({
+      status: RequestStatus.REJECTED,
+      isRead: true,
+    });
+  });
+
+  it('update throws NotFoundException when the request does not exist', async () => {
+    requestsRepository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.update('request-1', { status: RequestStatus.ACCEPTED }, 'user-1'),
+    ).rejects.toThrow(NotFoundException);
+    expect(requestsRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('update throws ForbiddenException for an outgoing request', async () => {
+    requestsRepository.findOne.mockResolvedValue({
+      id: 'request-1',
+      status: RequestStatus.PENDING,
+      isRead: false,
+      sender: { id: 'sender-1' },
+      receiver: { id: 'receiver-1' },
+    });
+
+    await expect(
+      service.update(
+        'request-1',
+        { status: RequestStatus.ACCEPTED },
+        'sender-1',
+      ),
+    ).rejects.toThrow(ForbiddenException);
     expect(requestsRepository.save).not.toHaveBeenCalled();
   });
 });
