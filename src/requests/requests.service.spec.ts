@@ -5,13 +5,19 @@ import {
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { In } from 'typeorm';
 import { Skill } from '../skills/entities/skill.entity';
 import { Request } from './entities/request.entity';
+import { RequestStatus } from './requests.enums';
 import { RequestsService } from './requests.service';
 
 describe('RequestsService', () => {
   let service: RequestsService;
-  const requestsRepository = { create: jest.fn(), save: jest.fn() };
+  const requestsRepository = {
+    create: jest.fn(),
+    save: jest.fn(),
+    find: jest.fn(),
+  };
   const skillsRepository = { findOne: jest.fn() };
 
   const dto = { offeredSkillId: 'offered-1', requestedSkillId: 'requested-1' };
@@ -73,6 +79,23 @@ describe('RequestsService', () => {
       ForbiddenException,
     );
     expect(requestsRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('findIncoming returns active requests addressed to the user', async () => {
+    const requests = [{ id: 'request-1' }];
+    requestsRepository.find.mockResolvedValue(requests);
+
+    const result = await service.findIncoming('receiver-1');
+
+    expect(requestsRepository.find).toHaveBeenCalledWith({
+      where: {
+        receiver: { id: 'receiver-1' },
+        status: In([RequestStatus.PENDING, RequestStatus.IN_PROGRESS]),
+      },
+      relations: { sender: true, offeredSkill: true, requestedSkill: true },
+      order: { createdAt: 'DESC' },
+    });
+    expect(result).toBe(requests);
   });
 
   it('throws BadRequestException when requesting own skill', async () => {
