@@ -5,10 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Skill } from '../skills/entities/skill.entity';
 import { CreateRequestDto } from './dto/create-request.dto';
 import { Request } from './entities/request.entity';
+import { RequestStatus } from './requests.enums';
+
+const ACTIVE_STATUSES = [RequestStatus.PENDING, RequestStatus.IN_PROGRESS];
 
 @Injectable()
 export class RequestsService {
@@ -37,6 +40,14 @@ export class RequestsService {
       requestedSkill: { id: requestedSkill.id },
     });
     return this.requestsRepository.save(request);
+  }
+
+  findIncoming(userId: string): Promise<Request[]> {
+    return this.requestsRepository.find({
+      where: { receiver: { id: userId }, status: In(ACTIVE_STATUSES) },
+      relations: { sender: true, offeredSkill: true, requestedSkill: true },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   private async findSkillWithOwner(id: string): Promise<Skill> {
