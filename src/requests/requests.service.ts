@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -74,10 +75,26 @@ export class RequestsService {
       throw new ForbiddenException('Обновить можно только входящую заявку');
     }
 
+    if (request.status !== RequestStatus.PENDING) {
+      throw new ConflictException(
+        `Принять или отклонить можно только заявку со статусом ${RequestStatus.PENDING}`,
+      );
+    }
+
+    const { affected } = await this.requestsRepository.update(
+      { id, status: RequestStatus.PENDING },
+      { status: dto.status, isRead: true },
+    );
+
+    // проверку выше могли одновременно пройти два запроса, решение засчитываем первому
+    if (!affected) {
+      throw new ConflictException('Заявка уже обработана');
+    }
+
     request.status = dto.status;
     request.isRead = true;
 
-    return this.requestsRepository.save(request);
+    return request;
   }
 
   private async findSkillWithOwner(id: string): Promise<Skill> {

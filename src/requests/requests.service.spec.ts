@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -18,6 +19,7 @@ describe('RequestsService', () => {
     save: jest.fn(),
     find: jest.fn(),
     findOne: jest.fn(),
+    update: jest.fn(),
   };
   const skillsRepository = { findOne: jest.fn() };
 
@@ -110,7 +112,7 @@ describe('RequestsService', () => {
     expect(requestsRepository.save).not.toHaveBeenCalled();
   });
 
-  it('update accepts an incoming request and marks it read', async () => {
+  it('update accepts a pending request and marks it read', async () => {
     const request = {
       id: 'request-1',
       status: RequestStatus.PENDING,
@@ -118,7 +120,7 @@ describe('RequestsService', () => {
       receiver: { id: 'receiver-1' },
     };
     requestsRepository.findOne.mockResolvedValue(request);
-    requestsRepository.save.mockImplementation((entity: unknown) => entity);
+    requestsRepository.update.mockResolvedValue({ affected: 1 });
 
     const result = await service.update(
       'request-1',
@@ -135,7 +137,10 @@ describe('RequestsService', () => {
         requestedSkill: true,
       },
     });
-    expect(requestsRepository.save).toHaveBeenCalledWith(request);
+    expect(requestsRepository.update).toHaveBeenCalledWith(
+      { id: 'request-1', status: RequestStatus.PENDING },
+      { status: RequestStatus.ACCEPTED, isRead: true },
+    );
     expect(result).toMatchObject({
       status: RequestStatus.ACCEPTED,
       isRead: true,
@@ -149,7 +154,7 @@ describe('RequestsService', () => {
       isRead: false,
       receiver: { id: 'receiver-1' },
     });
-    requestsRepository.save.mockImplementation((entity: unknown) => entity);
+    requestsRepository.update.mockResolvedValue({ affected: 1 });
 
     const result = await service.update(
       'request-1',
@@ -169,7 +174,7 @@ describe('RequestsService', () => {
     await expect(
       service.update('request-1', { status: RequestStatus.ACCEPTED }, 'user-1'),
     ).rejects.toThrow(NotFoundException);
-    expect(requestsRepository.save).not.toHaveBeenCalled();
+    expect(requestsRepository.update).not.toHaveBeenCalled();
   });
 
   it('update throws ForbiddenException for an outgoing request', async () => {
@@ -188,6 +193,47 @@ describe('RequestsService', () => {
         'sender-1',
       ),
     ).rejects.toThrow(ForbiddenException);
-    expect(requestsRepository.save).not.toHaveBeenCalled();
+    expect(requestsRepository.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    RequestStatus.ACCEPTED,
+    RequestStatus.REJECTED,
+    RequestStatus.IN_PROGRESS,
+    RequestStatus.DONE,
+  ])('update throws ConflictException for a %s request', async (status) => {
+    requestsRepository.findOne.mockResolvedValue({
+      id: 'request-1',
+      status,
+      isRead: true,
+      receiver: { id: 'receiver-1' },
+    });
+
+    await expect(
+      service.update(
+        'request-1',
+        { status: RequestStatus.ACCEPTED },
+        'receiver-1',
+      ),
+    ).rejects.toThrow(ConflictException);
+    expect(requestsRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('update throws ConflictException when a parallel request decided first', async () => {
+    requestsRepository.findOne.mockResolvedValue({
+      id: 'request-1',
+      status: RequestStatus.PENDING,
+      isRead: false,
+      receiver: { id: 'receiver-1' },
+    });
+    requestsRepository.update.mockResolvedValue({ affected: 0 });
+
+    await expect(
+      service.update(
+        'request-1',
+        { status: RequestStatus.ACCEPTED },
+        'receiver-1',
+      ),
+    ).rejects.toThrow(ConflictException);
   });
 });
