@@ -8,6 +8,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { In } from 'typeorm';
 import { Skill } from '../skills/entities/skill.entity';
+import { UserRole } from '../users/users.enums';
 import { Request } from './entities/request.entity';
 import { RequestStatus } from './requests.enums';
 import { RequestsService } from './requests.service';
@@ -20,6 +21,7 @@ describe('RequestsService', () => {
     find: jest.fn(),
     findOne: jest.fn(),
     update: jest.fn(),
+    remove: jest.fn(),
   };
   const skillsRepository = { findOne: jest.fn() };
 
@@ -235,5 +237,48 @@ describe('RequestsService', () => {
         'receiver-1',
       ),
     ).rejects.toThrow(ConflictException);
+  });
+
+  it('remove deletes the request for its sender', async () => {
+    const request = { id: 'request-1', sender: { id: 'sender-1' } };
+    requestsRepository.findOne.mockResolvedValue(request);
+
+    await service.remove('request-1', 'sender-1', UserRole.USER);
+
+    expect(requestsRepository.findOne).toHaveBeenCalledWith({
+      where: { id: 'request-1' },
+      relations: { sender: true },
+    });
+    expect(requestsRepository.remove).toHaveBeenCalledWith(request);
+  });
+
+  it('remove lets an admin delete a request of another user', async () => {
+    const request = { id: 'request-1', sender: { id: 'sender-1' } };
+    requestsRepository.findOne.mockResolvedValue(request);
+
+    await service.remove('request-1', 'admin-1', UserRole.ADMIN);
+
+    expect(requestsRepository.remove).toHaveBeenCalledWith(request);
+  });
+
+  it('remove throws NotFoundException when the request does not exist', async () => {
+    requestsRepository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.remove('request-1', 'sender-1', UserRole.USER),
+    ).rejects.toThrow(NotFoundException);
+    expect(requestsRepository.remove).not.toHaveBeenCalled();
+  });
+
+  it('remove throws ForbiddenException for the receiver of the request', async () => {
+    requestsRepository.findOne.mockResolvedValue({
+      id: 'request-1',
+      sender: { id: 'sender-1' },
+    });
+
+    await expect(
+      service.remove('request-1', 'receiver-1', UserRole.USER),
+    ).rejects.toThrow(ForbiddenException);
+    expect(requestsRepository.remove).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -39,5 +42,12 @@ export class RequestsController {
     @Req() req: AuthRequest,
   ) {
     return this.requestsService.update(id, dto, req.user.sub);
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: AuthRequest) {
+    return this.requestsService.remove(id, req.user.sub, req.user.role);
   }
 }

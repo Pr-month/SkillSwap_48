@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Skill } from '../skills/entities/skill.entity';
+import { UserRole } from '../users/users.enums';
 import { CreateRequestDto } from './dto/create-request.dto';
 import { UpdateRequestDto } from './dto/update-request.dto';
 import { Request } from './entities/request.entity';
@@ -95,6 +96,23 @@ export class RequestsService {
     request.isRead = true;
 
     return request;
+  }
+
+  async remove(id: string, userId: string, role: UserRole): Promise<void> {
+    const request = await this.requestsRepository.findOne({
+      where: { id },
+      relations: { sender: true },
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Заявка ${id} не найдена`);
+    }
+
+    if (role !== UserRole.ADMIN && request.sender?.id !== userId) {
+      throw new ForbiddenException('Удалить можно только свою заявку');
+    }
+
+    await this.requestsRepository.remove(request);
   }
 
   private async findSkillWithOwner(id: string): Promise<Skill> {
