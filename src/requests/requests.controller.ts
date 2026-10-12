@@ -19,4 +19,10 @@ export class RequestsController {
   findIncoming(@Req() req: AuthRequest) {
     return this.requestsService.findIncoming(req.user.sub);
   }
+
+  @UseGuards(AccessTokenGuard)
+  @Get('outgoing')
+  findOutgoing(@Req() req: AuthRequest) {
+    return this.requestsService.findOutgoing(req.user.sub);
+  }
 }

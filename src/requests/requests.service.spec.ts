@@ -98,6 +98,23 @@ describe('RequestsService', () => {
     expect(result).toBe(requests);
   });
 
+  it('findOutgoing returns active requests sent by the user', async () => {
+    const requests = [{ id: 'request-1' }];
+    requestsRepository.find.mockResolvedValue(requests);
+
+    const result = await service.findOutgoing('sender-1');
+
+    expect(requestsRepository.find).toHaveBeenCalledWith({
+      where: {
+        sender: { id: 'sender-1' },
+        status: In([RequestStatus.PENDING, RequestStatus.IN_PROGRESS]),
+      },
+      relations: { receiver: true, offeredSkill: true, requestedSkill: true },
+      order: { createdAt: 'DESC' },
+    });
+    expect(result).toBe(requests);
+  });
+
   it('throws BadRequestException when requesting own skill', async () => {
     skillsRepository.findOne
       .mockResolvedValueOnce(offeredSkill)

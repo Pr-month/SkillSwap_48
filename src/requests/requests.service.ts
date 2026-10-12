@@ -50,6 +50,14 @@ export class RequestsService {
     });
   }
 
+  findOutgoing(userId: string): Promise<Request[]> {
+    return this.requestsRepository.find({
+      where: { sender: { id: userId }, status: In(ACTIVE_STATUSES) },
+      relations: { receiver: true, offeredSkill: true, requestedSkill: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   private async findSkillWithOwner(id: string): Promise<Skill> {
     const skill = await this.skillsRepository.findOne({
       where: { id },
