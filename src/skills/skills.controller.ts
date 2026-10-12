@@ -58,6 +58,16 @@ export class SkillsController {
   }
 
   @UseGuards(AccessTokenGuard)
+  @Delete(':id/favorite')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeFavorite(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: AuthRequest,
+  ) {
+    return this.skillsService.removeFavorite(id, req.user.sub);
+  }
+
+  @UseGuards(AccessTokenGuard)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: AuthRequest) {
