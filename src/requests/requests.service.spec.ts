@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -17,6 +18,8 @@ describe('RequestsService', () => {
     create: jest.fn(),
     save: jest.fn(),
     find: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
   };
   const skillsRepository = { findOne: jest.fn() };
 
@@ -107,5 +110,130 @@ describe('RequestsService', () => {
       BadRequestException,
     );
     expect(requestsRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('update accepts a pending request and marks it read', async () => {
+    const request = {
+      id: 'request-1',
+      status: RequestStatus.PENDING,
+      isRead: false,
+      receiver: { id: 'receiver-1' },
+    };
+    requestsRepository.findOne.mockResolvedValue(request);
+    requestsRepository.update.mockResolvedValue({ affected: 1 });
+
+    const result = await service.update(
+      'request-1',
+      { status: RequestStatus.ACCEPTED },
+      'receiver-1',
+    );
+
+    expect(requestsRepository.findOne).toHaveBeenCalledWith({
+      where: { id: 'request-1' },
+      relations: {
+        sender: true,
+        receiver: true,
+        offeredSkill: true,
+        requestedSkill: true,
+      },
+    });
+    expect(requestsRepository.update).toHaveBeenCalledWith(
+      { id: 'request-1', status: RequestStatus.PENDING },
+      { status: RequestStatus.ACCEPTED, isRead: true },
+    );
+    expect(result).toMatchObject({
+      status: RequestStatus.ACCEPTED,
+      isRead: true,
+    });
+  });
+
+  it('update marks a rejected request read as well', async () => {
+    requestsRepository.findOne.mockResolvedValue({
+      id: 'request-1',
+      status: RequestStatus.PENDING,
+      isRead: false,
+      receiver: { id: 'receiver-1' },
+    });
+    requestsRepository.update.mockResolvedValue({ affected: 1 });
+
+    const result = await service.update(
+      'request-1',
+      { status: RequestStatus.REJECTED },
+      'receiver-1',
+    );
+
+    expect(result).toMatchObject({
+      status: RequestStatus.REJECTED,
+      isRead: true,
+    });
+  });
+
+  it('update throws NotFoundException when the request does not exist', async () => {
+    requestsRepository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.update('request-1', { status: RequestStatus.ACCEPTED }, 'user-1'),
+    ).rejects.toThrow(NotFoundException);
+    expect(requestsRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('update throws ForbiddenException for an outgoing request', async () => {
+    requestsRepository.findOne.mockResolvedValue({
+      id: 'request-1',
+      status: RequestStatus.PENDING,
+      isRead: false,
+      sender: { id: 'sender-1' },
+      receiver: { id: 'receiver-1' },
+    });
+
+    await expect(
+      service.update(
+        'request-1',
+        { status: RequestStatus.ACCEPTED },
+        'sender-1',
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(requestsRepository.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    RequestStatus.ACCEPTED,
+    RequestStatus.REJECTED,
+    RequestStatus.IN_PROGRESS,
+    RequestStatus.DONE,
+  ])('update throws ConflictException for a %s request', async (status) => {
+    requestsRepository.findOne.mockResolvedValue({
+      id: 'request-1',
+      status,
+      isRead: true,
+      receiver: { id: 'receiver-1' },
+    });
+
+    await expect(
+      service.update(
+        'request-1',
+        { status: RequestStatus.ACCEPTED },
+        'receiver-1',
+      ),
+    ).rejects.toThrow(ConflictException);
+    expect(requestsRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('update throws ConflictException when a parallel request decided first', async () => {
+    requestsRepository.findOne.mockResolvedValue({
+      id: 'request-1',
+      status: RequestStatus.PENDING,
+      isRead: false,
+      receiver: { id: 'receiver-1' },
+    });
+    requestsRepository.update.mockResolvedValue({ affected: 0 });
+
+    await expect(
+      service.update(
+        'request-1',
+        { status: RequestStatus.ACCEPTED },
+        'receiver-1',
+      ),
+    ).rejects.toThrow(ConflictException);
   });
 });

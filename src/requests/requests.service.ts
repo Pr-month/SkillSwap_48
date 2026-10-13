@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Skill } from '../skills/entities/skill.entity';
 import { CreateRequestDto } from './dto/create-request.dto';
+import { UpdateRequestDto } from './dto/update-request.dto';
 import { Request } from './entities/request.entity';
 import { RequestStatus } from './requests.enums';
 
@@ -48,6 +50,51 @@ export class RequestsService {
       relations: { sender: true, offeredSkill: true, requestedSkill: true },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async update(
+    id: string,
+    dto: UpdateRequestDto,
+    userId: string,
+  ): Promise<Request> {
+    const request = await this.requestsRepository.findOne({
+      where: { id },
+      relations: {
+        sender: true,
+        receiver: true,
+        offeredSkill: true,
+        requestedSkill: true,
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Заявка ${id} не найдена`);
+    }
+
+    if (request.receiver?.id !== userId) {
+      throw new ForbiddenException('Обновить можно только входящую заявку');
+    }
+
+    if (request.status !== RequestStatus.PENDING) {
+      throw new ConflictException(
+        `Принять или отклонить можно только заявку со статусом ${RequestStatus.PENDING}`,
+      );
+    }
+
+    const { affected } = await this.requestsRepository.update(
+      { id, status: RequestStatus.PENDING },
+      { status: dto.status, isRead: true },
+    );
+
+    // проверку выше могли одновременно пройти два запроса, решение засчитываем первому
+    if (!affected) {
+      throw new ConflictException('Заявка уже обработана');
+    }
+
+    request.status = dto.status;
+    request.isRead = true;
+
+    return request;
   }
 
   private async findSkillWithOwner(id: string): Promise<Skill> {
