@@ -2,6 +2,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Skill } from './entities/skill.entity';
+import { FilesService } from '../files/files.service';
 import { SkillsService } from './skills.service';
 
 describe('SkillsService', () => {
@@ -13,6 +14,9 @@ describe('SkillsService', () => {
     findOne: jest.fn(),
     remove: jest.fn(),
   };
+  const filesService = {
+    removeFiles: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -21,6 +25,7 @@ describe('SkillsService', () => {
       providers: [
         SkillsService,
         { provide: getRepositoryToken(Skill), useValue: skillsRepository },
+        { provide: FilesService, useValue: filesService },
       ],
     }).compile();
 
@@ -75,8 +80,12 @@ describe('SkillsService', () => {
   });
 
   describe('remove', () => {
-    it('deletes the skill when requested by its owner', async () => {
-      const skill = { id: 'skill-1', owner: { id: 'user-1' } };
+    it('deletes the skill and its images when requested by its owner', async () => {
+      const skill = {
+        id: 'skill-1',
+        owner: { id: 'user-1' },
+        images: ['/public/uploads/a.png', '/public/uploads/b.png'],
+      };
       skillsRepository.findOne.mockResolvedValue(skill);
 
       await service.remove('skill-1', 'user-1');
@@ -86,6 +95,19 @@ describe('SkillsService', () => {
         relations: { owner: true },
       });
       expect(skillsRepository.remove).toHaveBeenCalledWith(skill);
+      expect(filesService.removeFiles).toHaveBeenCalledWith(skill.images);
+    });
+
+    it('deletes the skill without images', async () => {
+      skillsRepository.findOne.mockResolvedValue({
+        id: 'skill-1',
+        owner: { id: 'user-1' },
+        images: [],
+      });
+
+      await service.remove('skill-1', 'user-1');
+
+      expect(filesService.removeFiles).toHaveBeenCalledWith([]);
     });
 
     it('throws NotFoundException when the skill does not exist', async () => {
@@ -95,18 +117,21 @@ describe('SkillsService', () => {
         NotFoundException,
       );
       expect(skillsRepository.remove).not.toHaveBeenCalled();
+      expect(filesService.removeFiles).not.toHaveBeenCalled();
     });
 
     it('throws ForbiddenException when the skill belongs to another user', async () => {
       skillsRepository.findOne.mockResolvedValue({
         id: 'skill-1',
         owner: { id: 'user-2' },
+        images: ['/public/uploads/a.png'],
       });
 
       await expect(service.remove('skill-1', 'user-1')).rejects.toThrow(
         ForbiddenException,
       );
       expect(skillsRepository.remove).not.toHaveBeenCalled();
+      expect(filesService.removeFiles).not.toHaveBeenCalled();
     });
   });
 });
