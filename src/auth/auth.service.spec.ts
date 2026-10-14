@@ -16,6 +16,7 @@ import { RegisterDto } from './dto/register.dto';
 describe('AuthService', () => {
   let service: AuthService;
   let signAsync: jest.Mock;
+  let decode: jest.Mock;
   let usersRepository: {
     findOne: jest.Mock;
     create: jest.Mock;
@@ -40,6 +41,7 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     signAsync = jest.fn().mockResolvedValue('token');
+    decode = jest.fn();
     usersRepository = {
       findOne: jest.fn(),
       create: jest.fn((entity: Partial<User>) => entity),
@@ -51,7 +53,7 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: getRepositoryToken(User), useValue: usersRepository },
-        { provide: JwtService, useValue: { signAsync } },
+        { provide: JwtService, useValue: { signAsync, decode } },
         {
           provide: jwtConfig.KEY,
           useValue: {
@@ -273,5 +275,26 @@ describe('AuthService', () => {
         refreshToken: 'refresh-token',
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('returns the expiration date from the refresh token payload', () => {
+    const expirationTimestampSeconds = 1700000000;
+    decode.mockReturnValue({ exp: expirationTimestampSeconds });
+
+    expect(service.getRefreshTokenExpiration('token')).toEqual(
+      new Date(expirationTimestampSeconds * 1000),
+    );
+  });
+
+  it('returns null when the refresh token has no exp', () => {
+    decode.mockReturnValue({});
+
+    expect(service.getRefreshTokenExpiration('token')).toBeNull();
+  });
+
+  it('returns null when the refresh token cannot be decoded', () => {
+    decode.mockReturnValue(null);
+
+    expect(service.getRefreshTokenExpiration('token')).toBeNull();
   });
 });
