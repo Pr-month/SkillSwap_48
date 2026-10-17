@@ -63,12 +63,25 @@ describe('RequestsService', () => {
     expect(result).toBe(saved);
   });
 
-  it('throws NotFoundException when a skill does not exist', async () => {
+  it('throws NotFoundException when the offered skill does not exist', async () => {
     skillsRepository.findOne.mockResolvedValueOnce(null);
 
     await expect(service.create(dto, 'sender-1')).rejects.toThrow(
       NotFoundException,
     );
+    expect(skillsRepository.findOne).toHaveBeenCalledTimes(1);
+    expect(requestsRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundException when the requested skill does not exist', async () => {
+    skillsRepository.findOne
+      .mockResolvedValueOnce(offeredSkill)
+      .mockResolvedValueOnce(null);
+
+    await expect(service.create(dto, 'sender-1')).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(skillsRepository.findOne).toHaveBeenCalledTimes(2);
     expect(requestsRepository.save).not.toHaveBeenCalled();
   });
 
@@ -113,6 +126,12 @@ describe('RequestsService', () => {
       order: { createdAt: 'DESC' },
     });
     expect(result).toBe(requests);
+  });
+
+  it('findIncoming returns an empty list when there are no active incoming requests', async () => {
+    requestsRepository.find.mockResolvedValue([]);
+
+    await expect(service.findIncoming('receiver-1')).resolves.toEqual([]);
   });
 
   it('throws BadRequestException when requesting own skill', async () => {

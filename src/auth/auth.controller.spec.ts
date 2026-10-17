@@ -5,6 +5,7 @@ import { Gender, UserRole } from '../users/users.enums';
 import { REFRESH_TOKEN_COOKIE } from './auth.constants';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import type { AuthRequest } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -143,7 +144,7 @@ describe('AuthController', () => {
     const res = { clearCookie } as unknown as Response;
     const req = {
       user: { sub: 'user-id', email: 'user@example.com', role: UserRole.USER },
-    };
+    } as unknown as AuthRequest;
 
     const result = await controller.logout(req, res);
 
