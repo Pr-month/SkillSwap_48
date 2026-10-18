@@ -1,3 +1,4 @@
+import { ApiTags } from '@nestjs/swagger';
 import {
   Controller,
   Post,
@@ -12,11 +13,14 @@ import { extname } from 'path';
 import { randomUUID } from 'crypto';
 import { UPLOADS_DIR } from './files.constants';
 import { FilesService } from './files.service';
+import { ApiUploadFile } from './decorators/files-swagger.decorator';
 
+@ApiTags('files')
 @Controller('files')
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
+  @ApiUploadFile()
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
