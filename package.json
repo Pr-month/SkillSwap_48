@@ -15,6 +15,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "seed:admin": "ts-node -r tsconfig-paths/register src/scripts/seed-admin.ts",
+    "seed:test:users": "ts-node -r tsconfig-paths/register src/scripts/seed-users.ts",
     "seed:cities": "ts-node -r tsconfig-paths/register src/scripts/seed-cities.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest --config jest.config.ts",
