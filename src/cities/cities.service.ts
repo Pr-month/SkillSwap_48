@@ -1,3 +1,4 @@
+import { ConflictException, Injectable } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -13,9 +14,19 @@ export class CitiesService {
     private readonly citiesRepository: Repository<City>,
   ) {}
 
-  create(createCityDto: CreateCityDto) {
-    void createCityDto;
-    return 'This action adds a new city';
+  async create(createCityDto: CreateCityDto): Promise<City> {
+    const { name } = createCityDto;
+
+    const existing = await this.citiesRepository.findOne({
+      where: { name },
+    });
+
+    if (existing) {
+      throw new ConflictException(`City with name ${name} already exists`);
+    }
+
+    const city = this.citiesRepository.create({ name });
+    return this.citiesRepository.save(city);
   }
 
   async findAll({ search = '' }: GetCitiesDto): Promise<City[]> {
