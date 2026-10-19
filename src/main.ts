@@ -8,6 +8,8 @@ import { AppModule } from './app.module';
 import { appConfig } from './config/app.config';
 import type { TAppConfig } from './config/app.config';
 import { AllExceptionFilter } from './common/filters/all-exception.filter';
+import { SwaggerModule } from '@nestjs/swagger';
+import { swaggerConfig } from './config/swagger.config';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -23,6 +25,9 @@ async function bootstrap() {
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.useGlobalFilters(new AllExceptionFilter());
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
 
   const publicDir = join(process.cwd(), 'public');
   const uploadsDir = join(publicDir, 'uploads');
