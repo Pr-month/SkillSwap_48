@@ -50,6 +50,45 @@ export class SkillsService {
     };
   }
 
+  async findSimilar(skillId: string): Promise<User[]> {
+    const skill = await this.skillsRepository.findOne({
+      where: { id: skillId },
+      relations: {
+        category: true,
+        owner: true,
+      },
+    });
+
+    if (!skill) {
+      throw new NotFoundException(`Skill with id ${skillId} not found`);
+    }
+
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .innerJoin('user.skills', 'skill')
+      .innerJoin('skill.category', 'category')
+      .where('category.id = :categoryId', {
+        categoryId: skill.category.id,
+      })
+      .andWhere('user.id != :ownerId', {
+        ownerId: skill.owner.id,
+      })
+      .select([
+        'user.id',
+        'user.name',
+        'user.email',
+        'user.about',
+        'user.birthdate',
+        'user.city',
+        'user.gender',
+        'user.avatar',
+        'user.role',
+      ])
+      .distinct(true)
+      .take(10)
+      .getMany();
+  }
+
   findOne(id: number) {
     return `This action returns a #${id} skill`;
   }
@@ -139,9 +178,7 @@ export class SkillsService {
       throw new NotFoundException('Skill is not in favorites');
     }
 
-    user.favoriteSkills = user.favoriteSkills.filter(
-      (s) => s.id !== skillId,
-    );
+    user.favoriteSkills = user.favoriteSkills.filter((s) => s.id !== skillId);
     await this.usersRepository.save(user);
   }
 }
