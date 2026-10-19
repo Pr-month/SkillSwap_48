@@ -1,3 +1,4 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -50,7 +51,13 @@ export class CitiesService {
     return `This action updates a #${id} city`;
   }
 
-  remove(id: string) {
-    return `This action removes a #${id} city`;
+  async remove(id: string): Promise<void> {
+    const city = await this.citiesRepository.findOne({ where: { id } });
+
+    if (!city) {
+      throw new NotFoundException(`City with id ${id} not found`);
+    }
+
+    await this.citiesRepository.remove(city);
   }
 }
