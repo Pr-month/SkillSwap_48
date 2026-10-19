@@ -8,6 +8,7 @@ import { RefreshTokenStrategy } from './strategies/refreshToken.strategy';
 import { User } from '../users/entities/user.entity';
 import { jwtConfig } from '../config/jwt.config';
 import type { TJwtConfig } from '../config/jwt.config';
+import { WsJwtGuard } from './guards/wsJwt.guard';
 
 @Module({
   imports: [
@@ -23,6 +24,12 @@ import type { TJwtConfig } from '../config/jwt.config';
     TypeOrmModule.forFeature([User]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AccessTokenStrategy, RefreshTokenStrategy],
+  providers: [
+    AuthService,
+    AccessTokenStrategy,
+    RefreshTokenStrategy,
+    WsJwtGuard,
+  ],
+  exports: [JwtModule, WsJwtGuard],
 })
 export class AuthModule {}

@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { AccessTokenGuard } from '../auth/guards/accessToken.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -15,6 +16,7 @@ import { UserRole } from '../users/users.enums';
 import { CitiesService } from './cities.service';
 import { CreateCityDto } from './dto/create-city.dto';
 import { UpdateCityDto } from './dto/update-city.dto';
+import { GetCitiesDto } from './dto/get-cities.dto';
 
 @Controller('cities')
 export class CitiesController {
@@ -28,8 +30,8 @@ export class CitiesController {
   }
 
   @Get()
-  findAll() {
-    return this.citiesService.findAll();
+  findAll(@Query() query: GetCitiesDto) {
+    return this.citiesService.findAll(query);
   }
 
   @Get(':id')
