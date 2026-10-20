@@ -1,6 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { ConflictException, Injectable } from '@nestjs/common';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateCityDto } from './dto/create-city.dto';
@@ -13,7 +11,7 @@ export class CitiesService {
   constructor(
     @InjectRepository(City)
     private readonly citiesRepository: Repository<City>,
-  ) {}
+  ) { }
 
   async create(createCityDto: CreateCityDto): Promise<City> {
     const { name } = createCityDto;
