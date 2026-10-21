@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateCityDto } from './dto/create-city.dto';
@@ -11,7 +15,7 @@ export class CitiesService {
   constructor(
     @InjectRepository(City)
     private readonly citiesRepository: Repository<City>,
-  ) { }
+  ) {}
 
   async create(createCityDto: CreateCityDto): Promise<City> {
     const { name } = createCityDto;
@@ -44,9 +48,27 @@ export class CitiesService {
     return `This action returns a #${id} city`;
   }
 
-  update(id: string, updateCityDto: UpdateCityDto) {
-    void updateCityDto;
-    return `This action updates a #${id} city`;
+  async update(id: string, updateCityDto: UpdateCityDto): Promise<City> {
+    const city = await this.citiesRepository.findOne({ where: { id } });
+
+    if (!city) {
+      throw new NotFoundException(`City with id ${id} not found`);
+    }
+
+    if (updateCityDto.name && updateCityDto.name !== city.name) {
+      const existing = await this.citiesRepository.findOne({
+        where: { name: updateCityDto.name },
+      });
+
+      if (existing) {
+        throw new ConflictException(
+          `City with name ${updateCityDto.name} already exists`,
+        );
+      }
+    }
+
+    Object.assign(city, updateCityDto);
+    return this.citiesRepository.save(city);
   }
 
   async remove(id: string): Promise<void> {

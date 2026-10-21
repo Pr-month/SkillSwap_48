@@ -42,8 +42,13 @@ export class CitiesController {
     return this.citiesService.findOne(id);
   }
 
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCityDto: UpdateCityDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateCityDto: UpdateCityDto,
+  ) {
     return this.citiesService.update(id, updateCityDto);
   }
 
