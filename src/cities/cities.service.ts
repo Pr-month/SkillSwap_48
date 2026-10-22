@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { ConflictException, Injectable } from '@nestjs/common';
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateCityDto } from './dto/create-city.dto';
@@ -42,8 +44,14 @@ export class CitiesService {
     return queryBuilder.orderBy('city.name', 'ASC').take(10).getMany();
   }
 
-  findOne(id: string) {
-    return `This action returns a #${id} city`;
+  async findOne(id: string): Promise<City> {
+    const city = await this.citiesRepository.findOne({ where: { id } });
+
+    if (!city) {
+      throw new NotFoundException(`City with id ${id} not found`);
+    }
+
+    return city;
   }
 
   update(id: string, updateCityDto: UpdateCityDto) {
