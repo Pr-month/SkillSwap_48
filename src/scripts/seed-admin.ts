@@ -1,15 +1,18 @@
 import 'dotenv/config';
 import * as bcrypt from 'bcrypt';
+import type { DataSource } from 'typeorm';
 import { AppDataSource } from '../config/ormconfig';
 import { User } from '../users/entities/user.entity';
 import { Gender, UserRole } from '../users/users.enums';
 
-async function seedAdmin(): Promise<void> {
-  if (!AppDataSource.isInitialized) {
-    await AppDataSource.initialize();
+export async function seedAdmin(
+  dataSource: DataSource = AppDataSource,
+): Promise<void> {
+  if (!dataSource.isInitialized) {
+    await dataSource.initialize();
   }
 
-  const usersRepository = AppDataSource.getRepository(User);
+  const usersRepository = dataSource.getRepository(User);
 
   const email = (process.env.ADMIN_EMAIL ?? 'admin@admin.com').toLowerCase();
   const password = process.env.ADMIN_PASSWORD ?? 'admin1234';
@@ -41,10 +44,19 @@ async function seedAdmin(): Promise<void> {
   console.log('Сидинг администратора успешно завершен');
 }
 
-void seedAdmin()
-  .catch((error) => console.error(`Ошибка сидинга администратора: ${error}`))
-  .finally(() => {
+async function runSeedAdmin(): Promise<void> {
+  try {
+    await seedAdmin();
+  } catch (error: unknown) {
+    console.error('Ошибка сидинга администратора:', error);
+    process.exitCode = 1;
+  } finally {
     if (AppDataSource.isInitialized) {
-      void AppDataSource.destroy();
+      await AppDataSource.destroy();
     }
-  });
+  }
+}
+
+if (require.main === module) {
+  void runSeedAdmin();
+}

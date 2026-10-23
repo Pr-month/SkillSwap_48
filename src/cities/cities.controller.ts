@@ -38,7 +38,7 @@ export class CitiesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.citiesService.findOne(id);
   }
 
