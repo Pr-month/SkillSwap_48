@@ -16,6 +16,7 @@
     "start:prod": "node dist/main",
     "seed:admin": "ts-node -r tsconfig-paths/register src/scripts/seed-admin.ts",
     "seed:test:users": "ts-node -r tsconfig-paths/register src/scripts/seed-users.ts",
+    "seed:test:skills": "node --env-file=.env.test.local -r ts-node/register -r tsconfig-paths/register src/scripts/seed-skills.ts",
     "seed:cities": "ts-node -r tsconfig-paths/register src/scripts/seed-cities.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest --config jest.config.ts",

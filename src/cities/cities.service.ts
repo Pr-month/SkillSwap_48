@@ -44,8 +44,14 @@ export class CitiesService {
     return queryBuilder.orderBy('city.name', 'ASC').take(10).getMany();
   }
 
-  findOne(id: string) {
-    return `This action returns a #${id} city`;
+  async findOne(id: string): Promise<City> {
+    const city = await this.citiesRepository.findOne({ where: { id } });
+
+    if (!city) {
+      throw new NotFoundException(`City with id ${id} not found`);
+    }
+
+    return city;
   }
 
   async update(id: string, updateCityDto: UpdateCityDto): Promise<City> {

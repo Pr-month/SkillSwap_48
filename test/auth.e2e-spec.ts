@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { Gender } from '../src/users/users.enums';
+import { REFRESH_TOKEN_COOKIE } from '../src/auth/auth.constants';
 import { createTestApp, testRequest } from './test-app';
 
 type AuthResponse = {
@@ -38,7 +39,7 @@ describe('Auth (e2e)', () => {
   });
 
   describe('POST /auth/register', () => {
-    it('регистрирует пользователя и возвращает токены', async () => {
+    it('регистрирует пользователя и возвращает accessToken и refresh-куку', async () => {
       const email = uniqueEmail('register');
       const response = await testRequest(app)
         .post('/auth/register')
@@ -47,7 +48,12 @@ describe('Auth (e2e)', () => {
       expect(response.status).toBe(201);
       const body = response.body as AuthResponse;
       expect(body).toHaveProperty('accessToken');
-      expect(body).toHaveProperty('refreshToken');
+      expect(body).not.toHaveProperty('refreshToken');
+      expect(response.headers['set-cookie']).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining(`${REFRESH_TOKEN_COOKIE}=`),
+        ]),
+      );
       expect(response.body).toMatchObject({ user: { email } });
       expect(body.user).not.toHaveProperty('password');
       expect(body.user).not.toHaveProperty('refreshToken');
