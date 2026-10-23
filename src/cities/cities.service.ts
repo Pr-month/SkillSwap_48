@@ -15,7 +15,7 @@ export class CitiesService {
   constructor(
     @InjectRepository(City)
     private readonly citiesRepository: Repository<City>,
-  ) {}
+  ) { }
 
   async create(createCityDto: CreateCityDto): Promise<City> {
     const { name } = createCityDto;
