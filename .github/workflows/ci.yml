@@ -53,7 +53,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
+          POSTGRES_DB: test
         ports:
           - 5432:5432
         options: >-
@@ -63,7 +63,14 @@ jobs:
           --health-retries=5
 
     env:
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      DB_MODE: local
+      LOCAL_DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
+      DB_SYNCHRONIZE: 'true'
+      DB_LOGGING: 'false'
+      JWT_ACCESS_SECRET: skillswap_test_access_secret
+      JWT_ACCESS_EXPIRES_IN: 1h
+      JWT_REFRESH_SECRET: skillswap_test_refresh_secret
+      JWT_REFRESH_EXPIRES_IN: 7d
       NODE_ENV: test
 
     steps:

@@ -51,13 +51,18 @@ export class CitiesController {
 
   @Get(':id')
   @ApiFindOneCity()
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.citiesService.findOne(id);
   }
 
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Patch(':id')
   @ApiUpdateCity()
-  update(@Param('id') id: string, @Body() updateCityDto: UpdateCityDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateCityDto: UpdateCityDto,
+  ) {
     return this.citiesService.update(id, updateCityDto);
   }
 
