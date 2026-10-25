@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import type { DataSource } from 'typeorm';
 import { AppDataSource } from '../config/ormconfig';
 import { City } from '../cities/entities/city.entity';
 
@@ -12,11 +13,14 @@ interface RawCity {
   subject: string;
 }
 
-async function seed(): Promise<void> {
-  await AppDataSource.initialize();
+export async function seedCities(
+  dataSource: DataSource = AppDataSource,
+): Promise<void> {
+  if (!dataSource.isInitialized) {
+    await dataSource.initialize();
+  }
 
-  const citiesRepository = AppDataSource.getRepository(City);
-
+  const citiesRepository = dataSource.getRepository(City);
   const filePath = join(__dirname, 'data', 'russian-cities.json');
   const raw = JSON.parse(readFileSync(filePath, 'utf-8')) as RawCity[];
 
@@ -40,20 +44,28 @@ async function seed(): Promise<void> {
 
   if (toInsert.length === 0) {
     console.log('Все города уже в базе, пропускаем.');
-    await AppDataSource.destroy();
     return;
   }
 
   await citiesRepository.save(citiesRepository.create(toInsert), {
     chunk: 100,
   });
-
   console.log(`Seeded ${toInsert.length} cities (из ${raw.length} в JSON)`);
-
-  await AppDataSource.destroy();
 }
 
-seed().catch((err) => {
-  console.error('Seed failed:', err);
-  process.exit(1);
-});
+async function runSeedCities(): Promise<void> {
+  try {
+    await seedCities();
+  } catch (error: unknown) {
+    console.error('Seed failed:', error);
+    process.exitCode = 1;
+  } finally {
+    if (AppDataSource.isInitialized) {
+      await AppDataSource.destroy();
+    }
+  }
+}
+
+if (require.main === module) {
+  void runSeedCities();
+}
