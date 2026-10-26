@@ -114,29 +114,19 @@ export function ApiGetSimilarSkills() {
 
 export function ApiGetSkill() {
   return applyDecorators(
+    ApiSkillId(),
     ApiOperation({
-      summary: 'Получить навык по ID (заглушка)',
+      summary: 'Получить навык по ID',
       description:
-        'Метод пока не обращается к базе данных: преобразует id в число и возвращает текстовую заглушку. Получение объекта навыка ещё не реализовано.',
-    }),
-    ApiParam({
-      name: 'id',
-      description: 'ID, который текущая заглушка преобразует в число',
-      type: String,
-      example: '42',
+        'Публичный запрос. Возвращает навык, его категорию и данные владельца без пароля и refresh-токена.',
     }),
     ApiResponse({
       status: HttpStatus.OK,
-      description: 'Текстовая заглушка',
-      content: {
-        'text/html': {
-          schema: {
-            type: 'string',
-            example: 'This action returns a #42 skill',
-          },
-        },
-      },
+      description: 'Навык найден',
+      type: SkillResponseDto,
     }),
+    ApiSkillError(HttpStatus.BAD_REQUEST, 'ID навыка должен быть UUID'),
+    ApiSkillError(HttpStatus.NOT_FOUND, 'Навык не найден'),
   );
 }
 
