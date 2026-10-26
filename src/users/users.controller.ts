@@ -20,7 +20,7 @@ import {
   ApiGetMe,
   ApiUpdateMe,
   ApiUpdatePassword,
-} from './decorators/users-swagger.decorator'; // <-- Импорт
+} from './decorators/users-swagger.decorator';
 
 @ApiTags('users')
 @Controller('users')
