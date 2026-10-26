@@ -1,7 +1,16 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { ClassSerializerInterceptor } from '@nestjs/common';
+import type { INestApplication } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import request from 'supertest';
+import type { App } from 'supertest/types';
 import type { AuthRequest } from '../auth/auth.types';
 import { AccessTokenGuard } from '../auth/guards/accessToken.guard';
+import { FilesService } from '../files/files.service';
+import { User } from '../users/entities/user.entity';
+import { Skill } from './entities/skill.entity';
 import type { CreateSkillDto } from './dto/create-skill.dto';
 import type { GetSkillsDto } from './dto/get-skills.dto';
 import type { UpdateSkillDto } from './dto/update-skill.dto';
@@ -106,13 +115,14 @@ describe('SkillsController', () => {
     expect(guards).toContain(AccessTokenGuard);
   });
 
-  it('passes numeric id to findOne', () => {
-    skillsService.findOne.mockReturnValue('skill');
+  it('passes the skill UUID to findOne without numeric conversion', async () => {
+    const skill = { id: skillId, title: 'Английский язык' };
+    skillsService.findOne.mockResolvedValue(skill);
 
-    const result = controller.findOne('42');
+    const result = await controller.findOne(skillId);
 
-    expect(skillsService.findOne).toHaveBeenCalledWith(42);
-    expect(result).toBe('skill');
+    expect(skillsService.findOne).toHaveBeenCalledWith(skillId);
+    expect(result).toBe(skill);
   });
 
   it('passes update data and current user id to the service', async () => {
@@ -155,5 +165,82 @@ describe('SkillsController', () => {
     await controller.remove(skillId, request);
 
     expect(skillsService.remove).toHaveBeenCalledWith(skillId, userId);
+  });
+});
+
+describe('GET /skills/:id', () => {
+  let app: INestApplication<App>;
+  const skillsRepository = { findOne: jest.fn() };
+  const skillId = '6f1c1f3e-6c1a-4d3b-9a43-2d6a5c1e9b10';
+  const userId = 'dc8387e8-703d-46c2-8ca6-240925334e9d';
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      controllers: [SkillsController],
+      providers: [
+        SkillsService,
+        { provide: getRepositoryToken(Skill), useValue: skillsRepository },
+        { provide: getRepositoryToken(User), useValue: {} },
+        { provide: FilesService, useValue: {} },
+      ],
+    }).compile();
+
+    app = module.createNestApplication();
+    app.useGlobalInterceptors(
+      new ClassSerializerInterceptor(app.get(Reflector)),
+    );
+    await app.init();
+  });
+
+  beforeEach(() => {
+    skillsRepository.findOne.mockReset();
+  });
+
+  afterAll(async () => {
+    await app?.close();
+  });
+
+  it('returns skill JSON publicly without exposing owner secrets', async () => {
+    const skill = Object.assign(new Skill(), {
+      id: skillId,
+      title: 'Английский язык',
+      description: 'Обучение английскому языку.',
+      images: [],
+      category: {
+        id: '25ac8264-c483-4bee-8f43-3169e03c101c',
+        name: 'Английский',
+      },
+      owner: Object.assign(new User(), {
+        id: userId,
+        name: 'Анна',
+        password: 'password-hash',
+        refreshToken: 'refresh-token-hash',
+      }),
+    });
+    skillsRepository.findOne.mockResolvedValue(skill);
+
+    await request(app.getHttpServer())
+      .get(`/skills/${skillId}`)
+      .expect(200)
+      .expect({
+        id: skillId,
+        title: skill.title,
+        description: skill.description,
+        images: [],
+        category: skill.category,
+        owner: { id: userId, name: 'Анна' },
+      });
+  });
+
+  it('returns 404 when no skill matches the UUID', async () => {
+    skillsRepository.findOne.mockResolvedValue(null);
+
+    await request(app.getHttpServer()).get(`/skills/${skillId}`).expect(404);
+  });
+
+  it('rejects a non-UUID ID before querying the repository', async () => {
+    await request(app.getHttpServer()).get('/skills/42').expect(400);
+
+    expect(skillsRepository.findOne).not.toHaveBeenCalled();
   });
 });
