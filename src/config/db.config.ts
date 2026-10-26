@@ -30,7 +30,9 @@ export const dbConfig = registerAs('DB_CONFIG', (): DataSourceOptions => {
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/../migrations/*{.ts,.js}'],
 
-    synchronize: process.env.DB_SYNCHRONIZE === 'true',
+    synchronize: false,
+    migrationsRun: false,
+    migrationsTableName: 'migrations',
     logging: process.env.DB_LOGGING === 'true',
   };
 });

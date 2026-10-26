@@ -67,15 +67,15 @@ export default async function prepareTestDatabase(): Promise<void> {
       );
     }
 
-    if (options.synchronize) {
-      await dataSource.synchronize();
-    }
+    await dataSource.runMigrations();
 
     await seedCities(dataSource);
     await seedAdmin(dataSource);
     await seedUsers(dataSource);
     await seedSkills(dataSource);
-    console.log('База test очищена и заполнена перед E2E-тестами.');
+    console.log(
+      'База test очищена, миграции применены и данные заполнены перед E2E-тестами.',
+    );
   } finally {
     await dataSource.destroy();
   }

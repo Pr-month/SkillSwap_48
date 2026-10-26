@@ -42,7 +42,6 @@ LOCAL_DATABASE_URL="postgresql://postgres:YOUR_LOCAL_PASSWORD@localhost:5432/ski
 
 DATABASE_URL="postgresql://postgres.PROJECT_REF:YOUR_SUPABASE_PASSWORD@SESSION_POOLER_HOST:5432/postgres?uselibpqcompat=true&sslmode=require"
 
-DB_SYNCHRONIZE=false
 DB_LOGGING=true
 
 PORT=3000
@@ -293,18 +292,44 @@ DB_MODE=local
 DB_MODE=supabase
 ```
 
-## 12. Особенность на данном этапе, пока командой не согласованы Entities
+## 12. Применение миграций
 
-По умолчанию используется:
+Автоматическая синхронизация структуры базы данных отключена. Таблицы и связи создаются и изменяются только с помощью миграций.
 
-```env
-DB_SYNCHRONIZE=false
-```
-
-В этом режиме приложение подключается к базе, но TypeORM не создаёт и не изменяет таблицы автоматически.
-
-После согласования Entity для проверки тестовых данных синхронизацию можно включить:
+Перед запуском миграций укажите в `.env` нужный режим подключения:
 
 ```env
-DB_SYNCHRONIZE=true
+DB_MODE=local
 ```
+
+или:
+
+```env
+DB_MODE=supabase
+```
+
+Проверить состояние миграций:
+
+```bash
+npm run migration:show
+```
+
+Применить все новые миграции:
+
+```bash
+npm run migration:run
+```
+
+Отменить последнюю применённую миграцию:
+
+```bash
+npm run migration:revert
+```
+
+Создать миграцию после изменения Entity:
+
+```bash
+npm run migration:generate -- src/migrations/MigrationName
+```
+
+Для E2E-тестов миграции применяются автоматически к отдельной базе данных `test`.
