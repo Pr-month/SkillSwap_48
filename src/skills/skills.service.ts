@@ -50,8 +50,74 @@ export class SkillsService {
     };
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} skill`;
+  async findSimilar(skillId: string): Promise<User[]> {
+    const skill = await this.skillsRepository.findOne({
+      where: { id: skillId },
+      relations: {
+        category: true,
+        owner: true,
+      },
+    });
+
+    if (!skill) {
+      throw new NotFoundException(`Skill with id ${skillId} not found`);
+    }
+
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .innerJoin('user.skills', 'skill')
+      .innerJoin('skill.category', 'category')
+      .where('category.id = :categoryId', {
+        categoryId: skill.category.id,
+      })
+      .andWhere('user.id != :ownerId', {
+        ownerId: skill.owner.id,
+      })
+      .select([
+        'user.id',
+        'user.name',
+        'user.email',
+        'user.about',
+        'user.birthdate',
+        'user.city',
+        'user.gender',
+        'user.avatar',
+        'user.role',
+      ])
+      .distinct(true)
+      .take(10)
+      .getMany();
+  }
+
+  async findOne(id: string): Promise<Skill> {
+    const skill = await this.skillsRepository.findOne({
+      where: { id },
+      relations: { category: true, owner: true },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        images: true,
+        category: { id: true, name: true },
+        owner: {
+          id: true,
+          name: true,
+          email: true,
+          about: true,
+          birthdate: true,
+          city: true,
+          gender: true,
+          avatar: true,
+          role: true,
+        },
+      },
+    });
+
+    if (!skill) {
+      throw new NotFoundException(`Skill with id ${id} not found`);
+    }
+
+    return skill;
   }
 
   async update(
@@ -139,9 +205,7 @@ export class SkillsService {
       throw new NotFoundException('Skill is not in favorites');
     }
 
-    user.favoriteSkills = user.favoriteSkills.filter(
-      (s) => s.id !== skillId,
-    );
+    user.favoriteSkills = user.favoriteSkills.filter((s) => s.id !== skillId);
     await this.usersRepository.save(user);
   }
 }

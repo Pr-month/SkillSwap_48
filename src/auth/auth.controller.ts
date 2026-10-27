@@ -10,16 +10,24 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { ApiTags } from '@nestjs/swagger';
 import { appConfig } from '../config/app.config';
 import type { TAppConfig } from '../config/app.config';
 import { REFRESH_TOKEN_COOKIE } from './auth.constants';
 import { AuthService } from './auth.service';
 import type { AuthRequest, RefreshTokenPayload } from './auth.types';
+import {
+  ApiLogin,
+  ApiLogout,
+  ApiRefresh,
+  ApiRegister,
+} from './decorators/auth-swagger.decorator';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AccessTokenGuard } from './guards/accessToken.guard';
 import { RefreshTokenGuard } from './guards/refreshToken.guard';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -28,6 +36,7 @@ export class AuthController {
     private readonly app: TAppConfig,
   ) {}
 
+  @ApiLogin()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
@@ -50,6 +59,7 @@ export class AuthController {
     return { user, accessToken };
   }
 
+  @ApiRegister()
   @Post('register')
   async register(
     @Body() registerDto: RegisterDto,
@@ -71,6 +81,7 @@ export class AuthController {
     return { user, accessToken };
   }
 
+  @ApiRefresh()
   @UseGuards(RefreshTokenGuard)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
@@ -95,6 +106,7 @@ export class AuthController {
     return { accessToken };
   }
 
+  @ApiLogout()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenGuard)

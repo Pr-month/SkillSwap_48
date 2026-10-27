@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Skill } from '../skills/entities/skill.entity';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { CreateRequestDto } from './dto/create-request.dto';
 import { Request } from './entities/request.entity';
 import { RequestStatus } from './requests.enums';
@@ -20,6 +21,7 @@ export class RequestsService {
     private readonly requestsRepository: Repository<Request>,
     @InjectRepository(Skill)
     private readonly skillsRepository: Repository<Skill>,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async create(dto: CreateRequestDto, senderId: string): Promise<Request> {
@@ -39,7 +41,18 @@ export class RequestsService {
       offeredSkill: { id: offeredSkill.id },
       requestedSkill: { id: requestedSkill.id },
     });
-    return this.requestsRepository.save(request);
+    const saved = await this.requestsRepository.save(request);
+
+    this.notificationsGateway.notifyUser(requestedSkill.owner.id, {
+      type: 'new',
+      skillTitle: requestedSkill.title,
+      fromUser: {
+        id: senderId,
+        name: offeredSkill.owner?.name ?? '',
+      },
+    });
+
+    return saved;
   }
 
   findIncoming(userId: string): Promise<Request[]> {
