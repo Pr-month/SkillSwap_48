@@ -23,6 +23,83 @@ jobs:
       - name: Run linter
         run: npm run lint
 
+  production-check:
+    name: Check Production Build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: production_check
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DB_MODE: local
+      LOCAL_DATABASE_URL: postgres://postgres:postgres@localhost:5432/production_check
+      DB_LOGGING: 'false'
+      JWT_ACCESS_SECRET: skillswap_ci_access_secret
+      JWT_ACCESS_EXPIRES_IN: 1h
+      JWT_REFRESH_SECRET: skillswap_ci_refresh_secret
+      JWT_REFRESH_EXPIRES_IN: 7d
+      PORT: 3000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Run production migrations
+        run: npm run migration:run:prod
+        env:
+          NODE_ENV: production
+
+      - name: Check production application
+        env:
+          NODE_ENV: production
+        run: |
+          npm run start:prod > production.log 2>&1 &
+          APP_PID=$!
+
+          trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:3000/ > /dev/null; then
+              echo "Production application started successfully"
+              exit 0
+            fi
+
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              echo "Production application stopped unexpectedly"
+              cat production.log
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          echo "Production application did not start in time"
+          cat production.log
+          exit 1
+
   unit-tests:
     name: Run Unit Tests (only on PR to main)
     if: github.base_ref == 'main'
@@ -65,7 +142,6 @@ jobs:
     env:
       DB_MODE: local
       LOCAL_DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
-      DB_SYNCHRONIZE: 'true'
       DB_LOGGING: 'false'
       JWT_ACCESS_SECRET: skillswap_test_access_secret
       JWT_ACCESS_EXPIRES_IN: 1h
