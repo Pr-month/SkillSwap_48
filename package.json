@@ -26,11 +26,11 @@
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/config/ormconfig.ts",
     "migration:run:prod": "typeorm migration:run -d dist/config/ormconfig.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest --config jest.config.ts",
-    "test:watch": "jest --config jest.config.ts --watch",
-    "test:cov": "jest --config jest.config.ts --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --config jest.config.ts --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.ts",
+    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.ts --watch",
+    "test:cov": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.ts --coverage",
+    "test:debug": "node --experimental-vm-modules --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --config jest.config.ts --runInBand",
+    "test:e2e": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
