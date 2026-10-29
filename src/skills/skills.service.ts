@@ -89,8 +89,35 @@ export class SkillsService {
       .getMany();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} skill`;
+  async findOne(id: string): Promise<Skill> {
+    const skill = await this.skillsRepository.findOne({
+      where: { id },
+      relations: { category: true, owner: true },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        images: true,
+        category: { id: true, name: true },
+        owner: {
+          id: true,
+          name: true,
+          email: true,
+          about: true,
+          birthdate: true,
+          city: true,
+          gender: true,
+          avatar: true,
+          role: true,
+        },
+      },
+    });
+
+    if (!skill) {
+      throw new NotFoundException(`Skill with id ${id} not found`);
+    }
+
+    return skill;
   }
 
   async update(

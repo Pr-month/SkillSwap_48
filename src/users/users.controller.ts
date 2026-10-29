@@ -43,10 +43,7 @@ export class UsersController {
   @UseGuards(AccessTokenGuard)
   @Patch('me')
   @ApiUpdateMe()
-  updateMe(
-    @Req() req: AuthRequest,
-    @Body() dto: UpdateUserDto,
-  ) {
+  updateMe(@Req() req: AuthRequest, @Body() dto: UpdateUserDto) {
     return this.usersService.updateMe(req.user.sub, dto);
   }
 
@@ -54,10 +51,7 @@ export class UsersController {
   @Patch('me/password')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiUpdatePassword()
-  updatePassword(
-    @Req() req: AuthRequest,
-    @Body() dto: UpdatePasswordDto,
-  ) {
+  updatePassword(@Req() req: AuthRequest, @Body() dto: UpdatePasswordDto) {
     return this.usersService.updatePassword(req.user.sub, dto);
   }
 }

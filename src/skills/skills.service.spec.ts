@@ -239,8 +239,38 @@ describe('SkillsService', () => {
   });
 
   describe('findOne', () => {
-    it('returns the generated resource placeholder', () => {
-      expect(service.findOne(42)).toBe('This action returns a #42 skill');
+    it('returns a stored skill with its category and public owner fields', async () => {
+      const skill = {
+        id: skillId,
+        title: 'Английский язык',
+        description: 'Обучение английскому языку.',
+        images: [],
+        category: { id: categoryId, name: 'Английский' },
+        owner: { id: userId, name: 'Анна' },
+      };
+      skillsRepository.findOne.mockResolvedValue(skill);
+
+      await expect(service.findOne(skillId)).resolves.toBe(skill);
+      expect(skillsRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: skillId },
+          relations: { category: true, owner: true },
+        }),
+      );
+      const [options] = skillsRepository.findOne.mock.calls[0] as [
+        {
+          select: { owner: Record<string, boolean> };
+        },
+      ];
+      expect(options.select.owner).toMatchObject({ id: true, name: true });
+      expect(options.select.owner).not.toHaveProperty('password');
+      expect(options.select.owner).not.toHaveProperty('refreshToken');
+    });
+
+    it('throws NotFoundException when the requested skill does not exist', async () => {
+      skillsRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOne(skillId)).rejects.toThrow(NotFoundException);
     });
   });
 

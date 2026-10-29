@@ -18,7 +18,7 @@ describe('E2E database preparation', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const initialize = jest.fn();
   const query = jest.fn();
-  const synchronize = jest.fn();
+  const runMigrations = jest.fn();
   const destroy = jest.fn();
   const configMock = jest.mocked(dbConfig);
   const dataSourceMock = jest.mocked(DataSource);
@@ -33,14 +33,19 @@ describe('E2E database preparation', () => {
     configMock.mockReturnValue({
       type: 'postgres',
       url: 'postgresql://postgres:postgres@localhost:5432/test',
-      synchronize: true,
+      synchronize: false,
     });
     dataSourceMock.mockImplementation(
       () =>
-        ({ initialize, query, synchronize, destroy }) as unknown as DataSource,
+        ({
+          initialize,
+          query,
+          runMigrations,
+          destroy,
+        }) as unknown as DataSource,
     );
     initialize.mockResolvedValue(undefined);
-    synchronize.mockResolvedValue(undefined);
+    runMigrations.mockResolvedValue([]);
     destroy.mockResolvedValue(undefined);
     query
       .mockResolvedValueOnce([{ name: 'test' }])
@@ -99,19 +104,19 @@ describe('E2E database preparation', () => {
     expect(dataSourceMock).not.toHaveBeenCalled();
   });
 
-  it('checks the actual database before cleanup or schema synchronization', async () => {
+  it('checks the actual database before cleanup or running migrations', async () => {
     query.mockReset().mockResolvedValueOnce([{ name: 'skillswap' }]);
 
     await expect(prepareTestDatabase()).rejects.toThrow(
       'фактическая база данных не test',
     );
     expect(query).toHaveBeenCalledTimes(1);
-    expect(synchronize).not.toHaveBeenCalled();
+    expect(runMigrations).not.toHaveBeenCalled();
     expect(citiesMock).not.toHaveBeenCalled();
     expect(destroy).toHaveBeenCalledTimes(1);
   });
 
-  it('cleans all related tables before synchronizing and running every seed', async () => {
+  it('cleans all related tables before running migrations and every seed', async () => {
     await prepareTestDatabase();
 
     expect(dataSourceMock).toHaveBeenCalledWith(
@@ -126,9 +131,9 @@ describe('E2E database preparation', () => {
       'TRUNCATE TABLE public.users, public.skills RESTART IDENTITY CASCADE',
     );
     expect(query.mock.invocationCallOrder[2]).toBeLessThan(
-      synchronize.mock.invocationCallOrder[0],
+      runMigrations.mock.invocationCallOrder[0],
     );
-    expect(synchronize.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(runMigrations.mock.invocationCallOrder[0]).toBeLessThan(
       citiesMock.mock.invocationCallOrder[0],
     );
     expect(citiesMock.mock.invocationCallOrder[0]).toBeLessThan(
@@ -152,12 +157,12 @@ describe('E2E database preparation', () => {
     await prepareTestDatabase();
 
     expect(query).toHaveBeenCalledTimes(2);
-    expect(synchronize).toHaveBeenCalledTimes(1);
+    expect(runMigrations).toHaveBeenCalledTimes(1);
     expect(skillsMock).toHaveBeenCalledTimes(1);
     expect(destroy).toHaveBeenCalledTimes(1);
   });
 
-  it('respects a configuration with schema synchronization disabled', async () => {
+  it('runs migrations when schema synchronization is disabled', async () => {
     configMock.mockReturnValue({
       type: 'postgres',
       url: 'postgresql://postgres:postgres@localhost:5432/test',
@@ -166,7 +171,7 @@ describe('E2E database preparation', () => {
 
     await prepareTestDatabase();
 
-    expect(synchronize).not.toHaveBeenCalled();
+    expect(runMigrations).toHaveBeenCalledTimes(1);
     expect(skillsMock).toHaveBeenCalledTimes(1);
   });
 
