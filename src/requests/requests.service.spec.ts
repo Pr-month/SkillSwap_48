@@ -6,6 +6,7 @@ import {
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { In } from 'typeorm';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { Skill } from '../skills/entities/skill.entity';
 import { Request } from './entities/request.entity';
 import { RequestStatus } from './requests.enums';
@@ -19,6 +20,7 @@ describe('RequestsService', () => {
     find: jest.fn(),
   };
   const skillsRepository = { findOne: jest.fn() };
+  const notificationsGateway = { notifyUser: jest.fn() };
 
   const dto = { offeredSkillId: 'offered-1', requestedSkillId: 'requested-1' };
   const offeredSkill = { id: 'offered-1', owner: { id: 'sender-1' } };
@@ -32,6 +34,7 @@ describe('RequestsService', () => {
         RequestsService,
         { provide: getRepositoryToken(Request), useValue: requestsRepository },
         { provide: getRepositoryToken(Skill), useValue: skillsRepository },
+        { provide: NotificationsGateway, useValue: notificationsGateway },
       ],
     }).compile();
 
