@@ -1,6 +1,7 @@
 // src/users/dto/user-response.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Gender, UserRole } from '../users.enums';
+import { CityResponseDto } from '../../cities/dto/city-response.dto';
 
 export class UserResponseDto {
   @ApiProperty({
@@ -33,11 +34,12 @@ export class UserResponseDto {
   })
   birthdate!: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Город',
-    example: 'Москва',
+    type: CityResponseDto,
+    nullable: true,
   })
-  city!: string;
+  city?: CityResponseDto | null;
 
   @ApiProperty({
     description: 'Пол',

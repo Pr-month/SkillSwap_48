@@ -1,15 +1,19 @@
+// src/users/entities/user.entity.ts
 import { Exclude } from 'class-transformer';
 import {
   Column,
   Entity,
+  JoinColumn,
   JoinTable,
   ManyToMany,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Gender, UserRole } from '../users.enums';
 import { Skill } from '../../skills/entities/skill.entity';
 import { Category } from '../../categories/entities/category.entity';
+import { City } from '../../cities/entities/city.entity';
 
 @Entity('users')
 export class User {
@@ -32,8 +36,12 @@ export class User {
   @Column({ type: 'date' })
   birthdate!: string;
 
-  @Column({ type: 'varchar', length: 100 })
-  city!: string;
+  @ManyToOne(() => City, (city) => city.users, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'city_id' })
+  city!: City | null;
 
   @Column({ type: 'enum', enum: Gender })
   gender!: Gender;

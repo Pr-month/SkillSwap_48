@@ -1,7 +1,9 @@
+// src/auth/auth.service.ts
 import {
   ConflictException,
   Inject,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -12,6 +14,7 @@ import { appConfig } from '../config/app.config';
 import type { TAppConfig } from '../config/app.config';
 import { jwtConfig } from '../config/jwt.config';
 import type { TJwtConfig } from '../config/jwt.config';
+import { City } from '../cities/entities/city.entity';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/users.enums';
 import type { JwtPayload, RefreshTokenPayload } from './auth.types';
@@ -23,6 +26,8 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    @InjectRepository(City)
+    private readonly citiesRepository: Repository<City>,
     private readonly jwtService: JwtService,
     @Inject(jwtConfig.KEY)
     private readonly jwt: TJwtConfig,
@@ -33,18 +38,7 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const user = await this.usersRepository.findOne({
       where: { email: loginDto.email.toLowerCase() },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-        name: true,
-        about: true,
-        birthdate: true,
-        city: true,
-        gender: true,
-        avatar: true,
-        role: true,
-      },
+      relations: { city: true },
     });
 
     const passwordValid =
@@ -75,6 +69,16 @@ export class AuthService {
 
     const password = await bcrypt.hash(registerDto.password, this.app.hashSalt);
 
+    let city: City | null = null;
+    if (registerDto.cityId) {
+      city = await this.citiesRepository.findOne({
+        where: { id: registerDto.cityId },
+      });
+      if (!city) {
+        throw new NotFoundException('Город не найден');
+      }
+    }
+
     try {
       const user = this.usersRepository.create({
         name: registerDto.name,
@@ -82,7 +86,7 @@ export class AuthService {
         password,
         about: registerDto.about,
         birthdate: registerDto.birthdate,
-        city: registerDto.city,
+        city,
         gender: registerDto.gender,
         avatar: registerDto.avatar ?? '',
         role: UserRole.USER,

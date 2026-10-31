@@ -80,6 +80,14 @@ describe('Categories (e2e)', () => {
     if (createdIds.length > 0) {
       await dataSource.getRepository(Category).delete(createdIds);
     }
+    if (dataSource) {
+      await dataSource
+        .getRepository(User)
+        .delete([
+          { email: `categories-admin-${suffix}@example.com` },
+          { email: `categories-user-${suffix}@example.com` },
+        ]);
+    }
     await app.close();
   });
 
@@ -165,6 +173,80 @@ describe('Categories (e2e)', () => {
   });
 
   describe('PATCH /categories/:id', () => {
+    it('возвращает 400 при назначении самой себя родителем и сохраняет категорию в корне', async () => {
+      const name = uniqueName('Корневая');
+      const category = (await createCategory({ name }))
+        .body as CategoryResponse;
+
+      await testRequest(app)
+        .patch(`/categories/${category.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ parentId: category.id, name: uniqueName('Не сохранять') })
+        .expect(400);
+
+      const stored = await dataSource.getRepository(Category).findOne({
+        where: { id: category.id },
+        relations: { parent: true },
+      });
+      expect(stored?.parent).toBeNull();
+      expect(stored?.name).toBe(name);
+      expect((await getRootCategories()).map((item) => item.id)).toContain(
+        category.id,
+      );
+    });
+
+    it.each([1, 3])(
+      'возвращает 400 при назначении потомка с глубиной %i родителем',
+      async (depth) => {
+        const root = (
+          await createCategory({ name: uniqueName(`Дерево ${depth}`) })
+        ).body as CategoryResponse;
+        let descendant = root;
+        for (let level = 1; level <= depth; level++) {
+          descendant = (
+            await createCategory({
+              name: uniqueName(`Уровень ${depth}-${level}`),
+              parentId: descendant.id,
+            })
+          ).body as CategoryResponse;
+        }
+
+        await testRequest(app)
+          .patch(`/categories/${root.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ parentId: descendant.id })
+          .expect(400);
+
+        const stored = await dataSource.getRepository(Category).findOne({
+          where: { id: root.id },
+          relations: { parent: true },
+        });
+        expect(stored?.parent).toBeNull();
+        expect((await getRootCategories()).map((item) => item.id)).toContain(
+          root.id,
+        );
+      },
+    );
+
+    it('разрешает перенос подкатегории выше, если цикл не возникает', async () => {
+      const root = (await createCategory({ name: uniqueName('Без цикла') }))
+        .body as CategoryResponse;
+      const child = (
+        await createCategory({ name: uniqueName('Ветка'), parentId: root.id })
+      ).body as CategoryResponse;
+      const leaf = (
+        await createCategory({ name: uniqueName('Лист'), parentId: child.id })
+      ).body as CategoryResponse;
+
+      const response = await testRequest(app)
+        .patch(`/categories/${leaf.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ parentId: root.id })
+        .expect(200);
+
+      expect(response.body).toMatchObject({ parent: { id: root.id } });
+    });
+
     it('администратор переименовывает категорию', async () => {
       const category = (await createCategory({ name: uniqueName('Старое') }))
         .body as CategoryResponse;

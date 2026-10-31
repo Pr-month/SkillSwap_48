@@ -1,4 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+// src/cities/entities/city.entity.ts
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('cities')
 export class City {
@@ -22,4 +24,7 @@ export class City {
 
   @Column({ type: 'int', nullable: true })
   population!: number | null;
+
+  @OneToMany(() => User, (user) => user.city)
+  users!: User[];
 }

@@ -7,7 +7,7 @@ describe('FilesController', () => {
   let controller: FilesController;
 
   const filesService = {
-    getFileUrl: jest.fn(),
+    saveImage: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -30,18 +30,19 @@ describe('FilesController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('passes the uploaded filename to the service and returns its url', () => {
+  it('passes the in-memory file to validation and storage', async () => {
     const file = {
-      filename: 'image.png',
+      buffer: Buffer.from('image'),
+      mimetype: 'image/png',
     } as Express.Multer.File;
 
     const result = {
       url: '/public/uploads/image.png',
     };
 
-    filesService.getFileUrl.mockReturnValue(result);
+    filesService.saveImage.mockResolvedValue(result);
 
-    expect(controller.uploadFile(file)).toEqual(result);
-    expect(filesService.getFileUrl).toHaveBeenCalledWith('image.png');
+    await expect(controller.uploadFile(file)).resolves.toEqual(result);
+    expect(filesService.saveImage).toHaveBeenCalledWith(file);
   });
 });
