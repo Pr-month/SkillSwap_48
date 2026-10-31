@@ -1,3 +1,4 @@
+// src/requests/requests.service.spec.ts
 import {
   BadRequestException,
   ForbiddenException,
@@ -7,6 +8,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { In } from 'typeorm';
 import { Skill } from '../skills/entities/skill.entity';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { Request } from './entities/request.entity';
 import { RequestStatus } from './requests.enums';
 import { RequestsService } from './requests.service';
@@ -19,10 +21,19 @@ describe('RequestsService', () => {
     find: jest.fn(),
   };
   const skillsRepository = { findOne: jest.fn() };
+  const notificationsGateway = { notifyUser: jest.fn() };
 
   const dto = { offeredSkillId: 'offered-1', requestedSkillId: 'requested-1' };
-  const offeredSkill = { id: 'offered-1', owner: { id: 'sender-1' } };
-  const requestedSkill = { id: 'requested-1', owner: { id: 'receiver-1' } };
+  const offeredSkill = {
+    id: 'offered-1',
+    title: 'Гитара',
+    owner: { id: 'sender-1', name: 'Иван' },
+  };
+  const requestedSkill = {
+    id: 'requested-1',
+    title: 'Английский язык',
+    owner: { id: 'receiver-1' },
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -32,6 +43,7 @@ describe('RequestsService', () => {
         RequestsService,
         { provide: getRepositoryToken(Request), useValue: requestsRepository },
         { provide: getRepositoryToken(Skill), useValue: skillsRepository },
+        { provide: NotificationsGateway, useValue: notificationsGateway },
       ],
     }).compile();
 
@@ -61,6 +73,12 @@ describe('RequestsService', () => {
     expect(requestsRepository.create).toHaveBeenCalledWith(entity);
     expect(requestsRepository.save).toHaveBeenCalledWith(entity);
     expect(result).toBe(saved);
+
+    expect(notificationsGateway.notifyUser).toHaveBeenCalledWith('receiver-1', {
+      type: 'new',
+      skillTitle: 'Английский язык',
+      fromUser: { id: 'sender-1', name: 'Иван' },
+    });
   });
 
   it('throws NotFoundException when the offered skill does not exist', async () => {
@@ -71,6 +89,7 @@ describe('RequestsService', () => {
     );
     expect(skillsRepository.findOne).toHaveBeenCalledTimes(1);
     expect(requestsRepository.save).not.toHaveBeenCalled();
+    expect(notificationsGateway.notifyUser).not.toHaveBeenCalled();
   });
 
   it('throws NotFoundException when the requested skill does not exist', async () => {
@@ -83,6 +102,7 @@ describe('RequestsService', () => {
     );
     expect(skillsRepository.findOne).toHaveBeenCalledTimes(2);
     expect(requestsRepository.save).not.toHaveBeenCalled();
+    expect(notificationsGateway.notifyUser).not.toHaveBeenCalled();
   });
 
   it('throws ForbiddenException when offering someone else’s skill', async () => {
@@ -92,6 +112,19 @@ describe('RequestsService', () => {
       ForbiddenException,
     );
     expect(requestsRepository.save).not.toHaveBeenCalled();
+    expect(notificationsGateway.notifyUser).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestException when requesting own skill', async () => {
+    skillsRepository.findOne
+      .mockResolvedValueOnce(offeredSkill)
+      .mockResolvedValueOnce({ id: 'requested-1', owner: { id: 'sender-1' } });
+
+    await expect(service.create(dto, 'sender-1')).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(requestsRepository.save).not.toHaveBeenCalled();
+    expect(notificationsGateway.notifyUser).not.toHaveBeenCalled();
   });
 
   it('findIncoming returns active requests addressed to the user', async () => {
@@ -132,16 +165,5 @@ describe('RequestsService', () => {
     requestsRepository.find.mockResolvedValue([]);
 
     await expect(service.findIncoming('receiver-1')).resolves.toEqual([]);
-  });
-
-  it('throws BadRequestException when requesting own skill', async () => {
-    skillsRepository.findOne
-      .mockResolvedValueOnce(offeredSkill)
-      .mockResolvedValueOnce({ id: 'requested-1', owner: { id: 'sender-1' } });
-
-    await expect(service.create(dto, 'sender-1')).rejects.toThrow(
-      BadRequestException,
-    );
-    expect(requestsRepository.save).not.toHaveBeenCalled();
   });
 });
