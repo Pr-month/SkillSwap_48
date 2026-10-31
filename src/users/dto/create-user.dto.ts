@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
 } from 'class-validator';
 import { Gender } from '../users.enums';
@@ -57,14 +58,12 @@ export class CreateUserDto {
   birthdate?: string;
 
   @ApiPropertyOptional({
-    description: 'Город',
-    example: 'Москва',
-    maxLength: 100,
+    description: 'ID города',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   })
   @IsOptional()
-  @IsString()
-  @Length(0, 100)
-  city?: string;
+  @IsUUID()
+  cityId?: string;
 
   @ApiPropertyOptional({
     description: 'Пол',

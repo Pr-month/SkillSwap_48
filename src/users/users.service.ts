@@ -1,3 +1,4 @@
+// src/users/users.service.ts
 import {
   Inject,
   Injectable,
@@ -7,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import { City } from '../cities/entities/city.entity';
 import { appConfig } from '../config/app.config';
 import type { TAppConfig } from '../config/app.config';
 import { UpdatePasswordDto } from './dto/update-password.dto';
@@ -18,28 +20,23 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    @InjectRepository(City)
+    private readonly citiesRepository: Repository<City>,
     @Inject(appConfig.KEY)
     private readonly app: TAppConfig,
   ) {}
 
   async findAll(): Promise<User[]> {
     return this.usersRepository.find({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        about: true,
-        birthdate: true,
-        city: true,
-        gender: true,
-        avatar: true,
-        role: true,
-      },
+      relations: { city: true },
     });
   }
 
   async findMe(id: string): Promise<User> {
-    const user = await this.usersRepository.findOne({ where: { id } });
+    const user = await this.usersRepository.findOne({
+      where: { id },
+      relations: { city: true },
+    });
     if (!user) {
       throw new NotFoundException('Пользователь не найден');
     }
@@ -47,10 +44,29 @@ export class UsersService {
   }
 
   async updateMe(id: string, dto: UpdateUserDto): Promise<User> {
-    const user = await this.usersRepository.findOne({ where: { id } });
+    const user = await this.usersRepository.findOne({
+      where: { id },
+      relations: { city: true },
+    });
     if (!user) {
       throw new NotFoundException('Пользователь не найден');
     }
+
+    if (dto.cityId !== undefined) {
+      if (dto.cityId === null) {
+        user.city = null;
+      } else {
+        const city = await this.citiesRepository.findOne({
+          where: { id: dto.cityId },
+        });
+        if (!city) {
+          throw new NotFoundException('Город не найден');
+        }
+        user.city = city;
+      }
+      delete dto.cityId;
+    }
+
     Object.assign(user, dto);
     return this.usersRepository.save(user);
   }
