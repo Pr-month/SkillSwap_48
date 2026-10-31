@@ -72,15 +72,16 @@ export class UsersService {
   }
 
   async updatePassword(id: string, dto: UpdatePasswordDto): Promise<void> {
-    const user = await this.usersRepository.findOne({ where: { id } });
-    if (!user) {
-      throw new NotFoundException('Пользователь не найден');
-    }
-    const matches = await bcrypt.compare(dto.oldPassword, user.password);
-    if (!matches) {
-      throw new UnauthorizedException('Неверный старый пароль');
-    }
-    user.password = await bcrypt.hash(dto.newPassword, this.app.hashSalt);
-    await this.usersRepository.save(user);
+  const user = await this.usersRepository.findOne({ where: { id } });
+  if (!user) {
+    throw new NotFoundException('Пользователь не найден');
+  }
+  const matches = await bcrypt.compare(dto.oldPassword, user.password);
+  if (!matches) {
+    throw new UnauthorizedException('Неверный старый пароль');
+  }
+  user.password = await bcrypt.hash(dto.newPassword, this.app.hashSalt);
+  user.refreshToken = null; // <-- отзываем refresh-токен
+  await this.usersRepository.save(user);
   }
 }

@@ -8,8 +8,14 @@ import {
   IsString,
   IsUUID,
   Length,
+  MinLength,
 } from 'class-validator';
 import { Gender } from '../users.enums';
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_MAX_BYTES,
+} from '../../common/constants/password.constants';
+import { MaxByteLength } from '../../common/validators/max-byte-length.validator';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -32,11 +38,14 @@ export class CreateUserDto {
   @ApiProperty({
     description: 'Пароль пользователя',
     example: 'password123',
-    minLength: 6,
-    maxLength: 100,
+    minLength: PASSWORD_MIN_LENGTH,
+    maxLength: PASSWORD_MAX_BYTES,
   })
   @IsString()
-  @Length(6, 100)
+  @MinLength(PASSWORD_MIN_LENGTH, {
+    message: `Пароль должен быть не менее ${PASSWORD_MIN_LENGTH} символов`,
+  })
+  @MaxByteLength(PASSWORD_MAX_BYTES)
   password!: string;
 
   @ApiPropertyOptional({
