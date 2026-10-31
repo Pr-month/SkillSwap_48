@@ -1,3 +1,4 @@
+// test/requests.e2e-spec.ts
 import { randomUUID } from 'crypto';
 import { INestApplication } from '@nestjs/common';
 import { App } from 'supertest/types';
@@ -315,6 +316,136 @@ describe('Requests (e2e)', () => {
 
     it('возвращает 401 без токена', async () => {
       const response = await testRequest(app).get(`/requests/${path}`);
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe('PATCH /requests/:id', () => {
+    it('получатель принимает заявку (pending → accepted)', async () => {
+      const created = await createRequestInDb();
+
+      const response = await testRequest(app)
+        .patch(`/requests/${created.id}`)
+        .set('Authorization', `Bearer ${receiver.accessToken}`)
+        .send({ status: RequestStatus.ACCEPTED });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        id: created.id,
+        status: RequestStatus.ACCEPTED,
+        isRead: true,
+      });
+    });
+
+    it('получатель отклоняет заявку (pending → rejected)', async () => {
+      const created = await createRequestInDb();
+
+      const response = await testRequest(app)
+        .patch(`/requests/${created.id}`)
+        .set('Authorization', `Bearer ${receiver.accessToken}`)
+        .send({ status: RequestStatus.REJECTED });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        id: created.id,
+        status: RequestStatus.REJECTED,
+      });
+    });
+
+    it('отправитель не может изменить свою заявку (403)', async () => {
+      const created = await createRequestInDb();
+
+      const response = await testRequest(app)
+        .patch(`/requests/${created.id}`)
+        .set('Authorization', `Bearer ${sender.accessToken}`)
+        .send({ status: RequestStatus.ACCEPTED });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('нельзя изменить статус не из pending (400)', async () => {
+      const created = await createRequestInDb(RequestStatus.ACCEPTED);
+
+      const response = await testRequest(app)
+        .patch(`/requests/${created.id}`)
+        .set('Authorization', `Bearer ${receiver.accessToken}`)
+        .send({ status: RequestStatus.REJECTED });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('нельзя передать done (400)', async () => {
+      const created = await createRequestInDb();
+
+      const response = await testRequest(app)
+        .patch(`/requests/${created.id}`)
+        .set('Authorization', `Bearer ${receiver.accessToken}`)
+        .send({ status: RequestStatus.DONE });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('возвращает 404 для несуществующей заявки', async () => {
+      const response = await testRequest(app)
+        .patch(`/requests/${randomUUID()}`)
+        .set('Authorization', `Bearer ${receiver.accessToken}`)
+        .send({ status: RequestStatus.ACCEPTED });
+
+      expect(response.status).toBe(404);
+    });
+
+    it('возвращает 401 без токена', async () => {
+      const created = await createRequestInDb();
+
+      const response = await testRequest(app)
+        .patch(`/requests/${created.id}`)
+        .send({ status: RequestStatus.ACCEPTED });
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe('DELETE /requests/:id', () => {
+    it('отправитель удаляет свою заявку (204)', async () => {
+      const created = await createRequestInDb();
+
+      const response = await testRequest(app)
+        .delete(`/requests/${created.id}`)
+        .set('Authorization', `Bearer ${sender.accessToken}`);
+
+      expect(response.status).toBe(204);
+
+      const saved = await dataSource
+        .getRepository(Request)
+        .findOne({ where: { id: created.id } });
+      expect(saved).toBeNull();
+    });
+
+    it('получатель не может удалить чужую заявку (403)', async () => {
+      const created = await createRequestInDb();
+
+      const response = await testRequest(app)
+        .delete(`/requests/${created.id}`)
+        .set('Authorization', `Bearer ${receiver.accessToken}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('возвращает 404 для несуществующей заявки', async () => {
+      const response = await testRequest(app)
+        .delete(`/requests/${randomUUID()}`)
+        .set('Authorization', `Bearer ${sender.accessToken}`);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('возвращает 401 без токена', async () => {
+      const created = await createRequestInDb();
+
+      const response = await testRequest(app).delete(
+        `/requests/${created.id}`,
+      );
 
       expect(response.status).toBe(401);
     });
