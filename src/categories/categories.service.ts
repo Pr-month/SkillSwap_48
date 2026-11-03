@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -57,22 +61,40 @@ export class CategoriesService {
       throw new NotFoundException('Категория не найдена');
     }
 
-    if (dto.name !== undefined) {
-      category.name = dto.name;
-    }
-
     if (dto.parentId !== undefined) {
       if (dto.parentId === null) {
         category.parent = null;
       } else {
         const parent = await this.categoriesRepository.findOne({
           where: { id: dto.parentId },
+          relations: { parent: true },
         });
         if (!parent) {
           throw new NotFoundException('Родительская категория не найдена');
         }
+
+        const visited = new Set([category.id]);
+        let ancestor: Category | null = parent;
+        while (ancestor) {
+          if (visited.has(ancestor.id)) {
+            throw new BadRequestException(
+              'Нельзя назначить категорию или её потомка родителем',
+            );
+          }
+          visited.add(ancestor.id);
+          ancestor = ancestor.parent
+            ? await this.categoriesRepository.findOne({
+                where: { id: ancestor.parent.id },
+                relations: { parent: true },
+              })
+            : null;
+        }
         category.parent = parent;
       }
+    }
+
+    if (dto.name !== undefined) {
+      category.name = dto.name;
     }
 
     return this.categoriesRepository.save(category);

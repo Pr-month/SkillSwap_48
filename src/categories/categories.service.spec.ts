@@ -1,8 +1,8 @@
 // src/categories/categories.service.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
-import { IsNull, Repository } from 'typeorm';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { IsNull } from 'typeorm';
 import { CategoriesService } from './categories.service';
 import { Category } from './entities/category.entity';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -10,7 +10,13 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 
 describe('CategoriesService', () => {
   let service: CategoriesService;
-  let repository: jest.Mocked<Repository<Category>>;
+  let repository: {
+    create: jest.Mock;
+    save: jest.Mock;
+    find: jest.Mock;
+    findOne: jest.Mock;
+    remove: jest.Mock;
+  };
 
   // Мок категории для тестов
   const mockCategory = {
@@ -30,6 +36,9 @@ describe('CategoriesService', () => {
   } as unknown as Category;
 
   beforeEach(async () => {
+    mockCategory.name = 'Музыка';
+    mockCategory.parent = null;
+    mockParentCategory.parent = null;
     // Создаём мок репозитория
     const mockRepository = {
       create: jest.fn(),
@@ -50,7 +59,7 @@ describe('CategoriesService', () => {
     }).compile();
 
     service = module.get<CategoriesService>(CategoriesService);
-    repository = module.get(getRepositoryToken(Category));
+    repository = module.get<typeof repository>(getRepositoryToken(Category));
   });
 
   afterEach(() => {
@@ -81,7 +90,10 @@ describe('CategoriesService', () => {
         name: 'Музыка',
         parentId: mockParentCategory.id,
       };
-      const categoryWithParent = { ...mockCategory, parent: mockParentCategory };
+      const categoryWithParent = {
+        ...mockCategory,
+        parent: mockParentCategory,
+      };
 
       repository.create.mockReturnValue(mockCategory);
       repository.findOne.mockResolvedValue(mockParentCategory);
@@ -156,79 +168,163 @@ describe('CategoriesService', () => {
   });
 
   // ========== update ==========
-describe('update', () => {
-  it('должен обновить название категории', async () => {
-    const dto: UpdateCategoryDto = { name: 'Новое название' };
-    const updatedCategory = { ...mockCategory, name: 'Новое название' };
+  describe('update', () => {
+    it('должен обновить название категории', async () => {
+      const dto: UpdateCategoryDto = { name: 'Новое название' };
+      const updatedCategory = { ...mockCategory, name: 'Новое название' };
 
-    repository.findOne.mockResolvedValue(mockCategory);
-    repository.save.mockResolvedValue(updatedCategory);
+      repository.findOne.mockResolvedValue(mockCategory);
+      repository.save.mockResolvedValue(updatedCategory);
 
-    const result = await service.update(mockCategory.id, dto);
+      const result = await service.update(mockCategory.id, dto);
 
-    expect(repository.findOne).toHaveBeenCalledWith({
-      where: { id: mockCategory.id },
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: { id: mockCategory.id },
+      });
+      expect(repository.save).toHaveBeenCalledWith(updatedCategory);
+      expect(result).toEqual(updatedCategory);
     });
-    expect(repository.save).toHaveBeenCalledWith(updatedCategory);
-    expect(result).toEqual(updatedCategory);
-  });
 
-  it('должен установить parent в null при parentId = null', async () => {
-    const dto: UpdateCategoryDto = { parentId: null };
-    const categoryWithParent = { ...mockCategory, parent: mockParentCategory };
-    const updatedCategory = { ...categoryWithParent, parent: null };
+    it('должен установить parent в null при parentId = null', async () => {
+      const dto: UpdateCategoryDto = { parentId: null };
+      const categoryWithParent = {
+        ...mockCategory,
+        parent: mockParentCategory,
+      };
+      const updatedCategory = { ...categoryWithParent, parent: null };
 
-    repository.findOne.mockResolvedValue(categoryWithParent);
-    repository.save.mockResolvedValue(updatedCategory);
+      repository.findOne.mockResolvedValue(categoryWithParent);
+      repository.save.mockResolvedValue(updatedCategory);
 
-    const result = await service.update(mockCategory.id, dto);
+      const result = await service.update(mockCategory.id, dto);
 
-    expect(repository.save).toHaveBeenCalledWith(updatedCategory);
-    expect(result).toEqual(updatedCategory);
-  });
+      expect(repository.save).toHaveBeenCalledWith(updatedCategory);
+      expect(result).toEqual(updatedCategory);
+    });
 
-  it('должен установить нового родителя при parentId', async () => {
-    const dto: UpdateCategoryDto = { parentId: mockParentCategory.id };
-    const updatedCategory = { ...mockCategory, parent: mockParentCategory };
+    it('должен установить нового родителя при parentId', async () => {
+      const dto: UpdateCategoryDto = { parentId: mockParentCategory.id };
+      const updatedCategory = { ...mockCategory, parent: mockParentCategory };
 
-    repository.findOne
-      .mockResolvedValueOnce(mockCategory) // поиск категории
-      .mockResolvedValueOnce(mockParentCategory); // поиск родителя
-    repository.save.mockResolvedValue(updatedCategory);
+      repository.findOne
+        .mockResolvedValueOnce(mockCategory) // поиск категории
+        .mockResolvedValueOnce(mockParentCategory); // поиск родителя
+      repository.save.mockResolvedValue(updatedCategory);
 
-    const result = await service.update(mockCategory.id, dto);
+      const result = await service.update(mockCategory.id, dto);
 
-    expect(repository.findOne).toHaveBeenCalledTimes(2);
-    expect(repository.save).toHaveBeenCalledWith(updatedCategory);
-    expect(result).toEqual(updatedCategory);
-  });
+      expect(repository.findOne).toHaveBeenCalledTimes(2);
+      expect(repository.save).toHaveBeenCalledWith(updatedCategory);
+      expect(result).toEqual(updatedCategory);
+    });
 
-  it('должен выбросить NotFoundException, если категория не найдена', async () => {
-    repository.findOne.mockResolvedValue(null);
+    it('должен выбросить NotFoundException, если категория не найдена', async () => {
+      repository.findOne.mockResolvedValue(null);
 
-    await expect(
-      service.update('non-existent-id', { name: 'Новое' }),
-    ).rejects.toThrow(NotFoundException);
-  });
+      await expect(
+        service.update('non-existent-id', { name: 'Новое' }),
+      ).rejects.toThrow(NotFoundException);
+    });
 
-  it('должен выбросить NotFoundException, если новый родитель не найден', async () => {
-    const dto: UpdateCategoryDto = { parentId: 'non-existent-parent' };
+    it('должен выбросить NotFoundException, если новый родитель не найден', async () => {
+      const dto: UpdateCategoryDto = { parentId: 'non-existent-parent' };
 
-    repository.findOne
-      .mockResolvedValueOnce(mockCategory) // категория найдена
-      .mockResolvedValueOnce(null);        // родитель не найден
+      repository.findOne
+        .mockResolvedValueOnce(mockCategory) // категория найдена
+        .mockResolvedValueOnce(null); // родитель не найден
 
-    try {
-      await service.update(mockCategory.id, dto);
-      fail('Ожидалась ошибка NotFoundException');
-    } catch (error) {
-      expect(error).toBeInstanceOf(NotFoundException);
-      expect((error as NotFoundException).message).toBe(
+      const operation = service.update(mockCategory.id, dto);
+      await expect(operation).rejects.toThrow(NotFoundException);
+      await expect(operation).rejects.toThrow(
         'Родительская категория не найдена',
       );
-    }
+    });
   });
-});
+
+  describe('защита от циклов', () => {
+    const node = (id: string, parent: Category | null = null): Category => ({
+      id,
+      name: `Категория ${id}`,
+      parent,
+      children: [],
+      skills: [],
+    });
+
+    const tree = (nodes: Category[]) => {
+      const categories = new Map(
+        nodes.map((category) => [category.id, category]),
+      );
+      repository.findOne.mockImplementation(
+        ({ where }: { where: { id: string } }) =>
+          Promise.resolve(categories.get(where.id) ?? null),
+      );
+      repository.save.mockImplementation((category: Category) =>
+        Promise.resolve(category),
+      );
+    };
+
+    it('запрещает назначить категорию родителем самой себе без изменения названия', async () => {
+      const category = node('a');
+      tree([category]);
+
+      await expect(
+        service.update('a', { parentId: 'a', name: 'Не сохранять' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(category.name).toBe('Категория a');
+      expect(category.parent).toBeNull();
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('запрещает назначить дочернюю категорию родителем', async () => {
+      const root = node('a');
+      const child = node('b', root);
+      tree([root, child]);
+
+      await expect(service.update('a', { parentId: 'b' })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(root.parent).toBeNull();
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('запрещает вложенный цикл через несколько уровней', async () => {
+      const root = node('a');
+      const child = node('b', root);
+      const grandchild = node('c', child);
+      const descendant = node('d', grandchild);
+      tree([root, child, grandchild, descendant]);
+
+      await expect(service.update('a', { parentId: 'd' })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(root.parent).toBeNull();
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('останавливает обход, если цепочка нового родителя уже содержит цикл', async () => {
+      const category = node('a');
+      const parent = node('b');
+      const ancestor = node('c', parent);
+      parent.parent = ancestor;
+      tree([category, parent, ancestor]);
+
+      await expect(service.update('a', { parentId: 'b' })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('разрешает перенести подкатегорию выше без создания цикла', async () => {
+      const root = node('a');
+      const child = node('b', root);
+      const leaf = node('c', child);
+      tree([root, child, leaf]);
+
+      const result = await service.update('c', { parentId: 'a' });
+      expect(result.parent).toBe(root);
+      expect(repository.save).toHaveBeenCalledWith(leaf);
+    });
+  });
 
   // ========== remove ==========
   describe('remove', () => {

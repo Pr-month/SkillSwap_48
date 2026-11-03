@@ -1,7 +1,9 @@
+// src/scripts/seed-admin.ts
 import 'dotenv/config';
 import * as bcrypt from 'bcrypt';
 import type { DataSource } from 'typeorm';
 import { AppDataSource } from '../config/ormconfig';
+import { City } from '../cities/entities/city.entity';
 import { User } from '../users/entities/user.entity';
 import { Gender, UserRole } from '../users/users.enums';
 
@@ -13,6 +15,7 @@ export async function seedAdmin(
   }
 
   const usersRepository = dataSource.getRepository(User);
+  const citiesRepository = dataSource.getRepository(City);
 
   const email = (process.env.ADMIN_EMAIL ?? 'admin@admin.com').toLowerCase();
   const password = process.env.ADMIN_PASSWORD ?? 'admin1234';
@@ -26,13 +29,20 @@ export async function seedAdmin(
 
   const passwordHash = await bcrypt.hash(password, saltRounds);
 
+  // Ищем город Москва (если есть)
+  let city: City | null = null;
+  const moscow = await citiesRepository.findOne({ where: { name: 'Москва' } });
+  if (moscow) {
+    city = moscow;
+  }
+
   const admin = usersRepository.create({
     name: 'Администратор',
     email,
     password: passwordHash,
     about: '',
     birthdate: '1990-01-01',
-    city: 'Москва',
+    city,
     gender: Gender.OTHER,
     avatar: '',
     role: UserRole.ADMIN,

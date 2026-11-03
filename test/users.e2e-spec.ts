@@ -1,6 +1,9 @@
+// test/users.e2e-spec.ts
 import { INestApplication } from '@nestjs/common';
+import request from 'supertest';
 import { App } from 'supertest/types';
 import { Gender, UserRole } from '../src/users/users.enums';
+import { REFRESH_TOKEN_COOKIE } from '../src/auth/auth.constants';
 import { createTestApp, testRequest } from './test-app';
 
 type UserResponse = {
@@ -164,6 +167,48 @@ describe('Users (e2e)', () => {
       expect(loginWithOld.status).toBe(401);
     });
 
+    it('смена пароля отзывает refresh-токен: старая refresh-кука → 401', async () => {
+  const email = uniqueEmail('users-password-revoke');
+
+  const agent = request.agent(app.getHttpServer());
+  const registerResponse = await agent.post('/auth/register').send({
+    name: 'Иван',
+    email,
+    password,
+    about: 'Немного о себе',
+    birthdate: '1995-05-20',
+    city: 'Москва',
+    gender: Gender.MALE,
+  });
+
+  const { accessToken } = registerResponse.body as { accessToken: string };
+
+  // Безопасное получение set-cookie
+  const rawCookies = registerResponse.headers['set-cookie'];
+  const oldCookies = (
+    Array.isArray(rawCookies) ? rawCookies : [rawCookies]
+  ).filter(Boolean) as string[];
+
+  const oldRefreshCookie = oldCookies.find((c) =>
+    c.startsWith(`${REFRESH_TOKEN_COOKIE}=`),
+  );
+  expect(oldRefreshCookie).toBeDefined();
+
+  const newPassword = 'newPassword456';
+  const changeResponse = await agent
+    .patch('/users/me/password')
+    .set('Authorization', `Bearer ${accessToken}`)
+    .send({ oldPassword: password, newPassword });
+
+  expect(changeResponse.status).toBe(204);
+
+  const refreshWithOldCookie = await request(app.getHttpServer())
+    .post('/auth/refresh')
+    .set('Cookie', oldRefreshCookie!);
+
+  expect(refreshWithOldCookie.status).toBe(401);
+});
+
     it('возвращает 401 при неверном старом пароле', async () => {
       const { accessToken } = await register('users-wrong-password');
 
@@ -185,6 +230,20 @@ describe('Users (e2e)', () => {
         .patch('/users/me/password')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ oldPassword: password, newPassword: '123' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('возвращает 400 для пароля длиннее 72 байт', async () => {
+      const { accessToken } = await register('users-long-password');
+
+      // 73 символа латиницы = 73 байта (больше лимита bcrypt)
+      const longPassword = 'a'.repeat(73);
+
+      const response = await testRequest(app)
+        .patch('/users/me/password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ oldPassword: password, newPassword: longPassword });
 
       expect(response.status).toBe(400);
     });

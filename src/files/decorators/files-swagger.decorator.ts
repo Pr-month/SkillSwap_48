@@ -1,6 +1,7 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
 import {
   ApiBody,
+  ApiBearerAuth,
   ApiConsumes,
   ApiOperation,
   ApiResponse,
@@ -8,7 +9,12 @@ import {
 
 export function ApiUploadFile() {
   return applyDecorators(
-    ApiOperation({ summary: 'Загрузка файла' }),
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Загрузка изображения',
+      description:
+        'Требуется access-токен. Разрешены JPEG, PNG и WebP до 2 МБ. Проверяются сигнатура и окончание файла. HTML и SVG запрещены.',
+    }),
     ApiConsumes('multipart/form-data'),
     ApiBody({
       schema: {
@@ -18,7 +24,8 @@ export function ApiUploadFile() {
           file: {
             type: 'string',
             format: 'binary',
-            description: 'Загружаемый файл размером не более 2 МБ',
+            description:
+              'Изображение JPEG, PNG или WebP размером не более 2 МБ',
           },
         },
       },
@@ -38,7 +45,16 @@ export function ApiUploadFile() {
     }),
     ApiResponse({
       status: HttpStatus.BAD_REQUEST,
-      description: 'Файл не передан или превышает допустимый размер 2 МБ',
+      description:
+        'Файл отсутствует, имеет запрещённый формат, неверную сигнатуру или окончание',
+    }),
+    ApiResponse({
+      status: HttpStatus.UNAUTHORIZED,
+      description: 'Access-токен отсутствует, недействителен или истёк',
+    }),
+    ApiResponse({
+      status: HttpStatus.PAYLOAD_TOO_LARGE,
+      description: 'Размер файла превышает 2 МБ',
     }),
   );
 }

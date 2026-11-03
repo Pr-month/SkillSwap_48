@@ -65,3 +65,56 @@ export function ApiGetOutgoingRequests() {
     }),
   );
 }
+
+export function ApiUpdateRequestStatus() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({ summary: 'Принять или отклонить входящую заявку' }),
+    ApiResponse({
+      status: HttpStatus.OK,
+      description: 'Статус заявки обновлён',
+    }),
+    ApiResponse({
+      status: HttpStatus.BAD_REQUEST,
+      description: 'Нельзя изменить статус из текущего состояния',
+    }),
+    ApiResponse({
+      status: HttpStatus.UNAUTHORIZED,
+      description: 'Пользователь не авторизован',
+    }),
+    ApiResponse({
+      status: HttpStatus.FORBIDDEN,
+      description: 'Только получатель может изменить статус',
+    }),
+    ApiResponse({
+      status: HttpStatus.NOT_FOUND,
+      description: 'Заявка не найдена',
+    }),
+  );
+}
+
+export function ApiDeleteRequest() {
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({
+      summary: 'Удалить заявку',
+      description: 'Только отправитель или администратор',
+    }),
+    ApiResponse({
+      status: HttpStatus.NO_CONTENT,
+      description: 'Заявка удалена',
+    }),
+    ApiResponse({
+      status: HttpStatus.UNAUTHORIZED,
+      description: 'Пользователь не авторизован',
+    }),
+    ApiResponse({
+      status: HttpStatus.FORBIDDEN,
+      description: 'Только отправитель или администратор может удалить заявку',
+    }),
+    ApiResponse({
+      status: HttpStatus.NOT_FOUND,
+      description: 'Заявка не найдена',
+    }),
+  );
+}

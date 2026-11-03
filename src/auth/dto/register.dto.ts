@@ -1,58 +1,83 @@
-import { Transform } from 'class-transformer';
+// src/auth/dto/register.dto.ts
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
   IsEmail,
   IsEnum,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
-  MaxLength,
-  MinLength,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
 import { Gender } from '../../users/users.enums';
 
 export class RegisterDto {
-  @ApiProperty({ example: 'Иван', description: 'Имя пользователя' })
+  @ApiProperty({
+    description: 'Имя пользователя',
+    example: 'Иван Иванов',
+    minLength: 2,
+    maxLength: 100,
+  })
   @IsString()
   @Length(2, 100)
   name!: string;
 
   @ApiProperty({
-    example: 'user@example.com',
     description: 'Email пользователя',
+    example: 'ivan@example.com',
   })
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim().toLowerCase() : value,
-  )
   @IsEmail()
-  @MaxLength(254)
   email!: string;
 
-  @ApiProperty({ example: 'password123', description: 'Пароль', minLength: 8 })
+  @ApiProperty({
+    description: 'Пароль пользователя',
+    example: 'password123',
+    minLength: 6,
+    maxLength: 100,
+  })
   @IsString()
-  @MinLength(8)
-  @MaxLength(72)
+  @Length(6, 100)
   password!: string;
 
-  @ApiProperty({ example: 'Немного о себе', description: 'О себе' })
+  @ApiPropertyOptional({
+    description: 'Информация о пользователе',
+    example: 'Люблю программировать и учить других',
+    maxLength: 1000,
+  })
+  @IsOptional()
   @IsString()
-  about!: string;
+  @Length(0, 1000)
+  about?: string;
 
-  @ApiProperty({ example: '1995-05-20', description: 'Дата рождения' })
+  @ApiPropertyOptional({
+    description: 'Дата рождения',
+    example: '1990-01-01',
+  })
+  @IsOptional()
   @IsDateString()
-  birthdate!: string;
+  birthdate?: string;
 
-  @ApiProperty({ example: 'Москва', description: 'Город' })
-  @IsString()
-  @Length(1, 100)
-  city!: string;
+  @ApiPropertyOptional({
+    description: 'ID города',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+  })
+  @IsOptional()
+  @IsUUID()
+  cityId?: string;
 
-  @ApiProperty({ enum: Gender, example: Gender.MALE, description: 'Пол' })
+  @ApiPropertyOptional({
+    description: 'Пол',
+    enum: Gender,
+    example: Gender.MALE,
+  })
+  @IsOptional()
   @IsEnum(Gender)
-  gender!: Gender;
+  gender?: Gender;
 
-  @ApiProperty({ example: '', description: 'Аватар', required: false })
+  @ApiPropertyOptional({
+    description: 'Ссылка на аватар',
+    example: '/public/uploads/avatar.jpg',
+  })
   @IsOptional()
   @IsString()
   avatar?: string;

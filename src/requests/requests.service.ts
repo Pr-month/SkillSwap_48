@@ -11,6 +11,9 @@ import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { CreateRequestDto } from './dto/create-request.dto';
 import { Request } from './entities/request.entity';
 import { RequestStatus } from './requests.enums';
+import { UpdateRequestStatusDto } from './dto/update-request-status.dto';
+import { UserRole } from '../users/users.enums';
+
 
 const ACTIVE_STATUSES = [RequestStatus.PENDING, RequestStatus.IN_PROGRESS];
 
@@ -70,6 +73,67 @@ export class RequestsService {
       order: { createdAt: 'DESC' },
     });
   }
+
+  async updateStatus(
+  id: string,
+  dto: UpdateRequestStatusDto,
+  userId: string,
+): Promise<Request> {
+  const request = await this.requestsRepository.findOne({
+    where: { id },
+    relations: { sender: true, receiver: true, requestedSkill: true },
+  });
+  if (!request) {
+    throw new NotFoundException('Заявка не найдена');
+  }
+
+  if (request.receiver.id !== userId) {
+    throw new ForbiddenException(
+      'Только получатель может изменить статус заявки',
+    );
+  }
+
+  if (request.status !== RequestStatus.PENDING) {
+    throw new BadRequestException(
+      `Нельзя изменить статус из "${request.status}"`,
+    );
+  }
+
+  request.status = dto.status;
+  request.isRead = true;
+  const saved = await this.requestsRepository.save(request);
+
+  this.notificationsGateway.notifyUser(request.sender.id, {
+    type: dto.status === RequestStatus.ACCEPTED ? 'accepted' : 'rejected',
+    skillTitle: request.requestedSkill.title,
+    fromUser: {
+      id: request.receiver.id,
+      name: request.receiver.name,
+    },
+  });
+
+  return saved;
+}
+
+async remove(
+  id: string,
+  userId: string,
+  userRole: UserRole,
+): Promise<void> {
+  const request = await this.requestsRepository.findOne({
+    where: { id },
+    relations: { sender: true },
+  });
+  if (!request) {
+    throw new NotFoundException('Заявка не найдена');
+  }
+
+  if (userRole !== UserRole.ADMIN && request.sender.id !== userId) {
+    throw new ForbiddenException('Только отправитель может удалить заявку');
+  }
+
+  await this.requestsRepository.remove(request);
+}
 
   private async findSkillWithOwner(id: string): Promise<Skill> {
     const skill = await this.skillsRepository.findOne({
