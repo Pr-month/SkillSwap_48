@@ -37,3 +37,20 @@ export async function createTestApp(): Promise<INestApplication<App>> {
 export function testRequest(app: INestApplication<App>) {
   return request(app.getHttpServer());
 }
+
+export function getCookie(
+  response: request.Response,
+  name: string,
+): string | undefined {
+  const rawCookies = response.headers['set-cookie'] as
+    | string[]
+    | string
+    | undefined;
+  const cookies = Array.isArray(rawCookies)
+    ? rawCookies
+    : rawCookies
+      ? [rawCookies]
+      : [];
+
+  return cookies.find((cookie) => cookie.startsWith(`${name}=`));
+}
