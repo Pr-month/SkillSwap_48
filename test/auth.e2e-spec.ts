@@ -3,7 +3,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { Gender } from '../src/users/users.enums';
 import { REFRESH_TOKEN_COOKIE } from '../src/auth/auth.constants';
-import { createTestApp, testRequest } from './test-app';
+import { createTestApp, getCookie, testRequest } from './test-app';
 
 type AuthResponse = {
   user?: { email: string; password?: string; refreshToken?: string };
@@ -26,7 +26,6 @@ describe('Auth (e2e)', () => {
     password,
     about: 'Немного о себе',
     birthdate: '1995-05-20',
-    city: 'Москва',
     gender: Gender.MALE,
   });
 
@@ -49,11 +48,7 @@ describe('Auth (e2e)', () => {
       const body = response.body as AuthResponse;
       expect(body).toHaveProperty('accessToken');
       expect(body).not.toHaveProperty('refreshToken');
-      expect(response.headers['set-cookie']).toEqual(
-        expect.arrayContaining([
-          expect.stringContaining(`${REFRESH_TOKEN_COOKIE}=`),
-        ]),
-      );
+      expect(getCookie(response, REFRESH_TOKEN_COOKIE)).toBeDefined();
       expect(response.body).toMatchObject({ user: { email } });
       expect(body.user).not.toHaveProperty('password');
       expect(body.user).not.toHaveProperty('refreshToken');
@@ -96,7 +91,7 @@ describe('Auth (e2e)', () => {
       expect(response.body).toHaveProperty('accessToken');
       expect(response.body).not.toHaveProperty('refreshToken');
       expect(response.body).toMatchObject({ user: { email } });
-      expect(response.headers['set-cookie']).toBeDefined();
+      expect(getCookie(response, REFRESH_TOKEN_COOKIE)).toBeDefined();
     });
 
     it('возвращает 401 при неверном пароле', async () => {
