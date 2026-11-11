@@ -36,6 +36,7 @@ backend/.nyc_output
 !.vscode/extensions.json
 
 # dotenv environment variable files
+/.env
 backend/.env
 backend/.env.development.local
 backend/.env.test.local
