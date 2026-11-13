@@ -4,6 +4,29 @@
 [Техническое задание](https://docs.google.com/document/d/1d4o9Sb9o6lxXuqdEgKe4eRlH2s7gKrh0icJ3gyv2FD4/edit?tab=t.0#heading=h.ynonjn54b672) <br>
 [Макет](https://www.figma.com/design/bKwOakHJI7Z2mh2zVCBphP/SkillSwap---Для-разработчиков?node-id=0-1&p=f&t=HH7S4bYwVVtxLM6z-0)
 
+## Запуск в Docker
+
+Нужен установленный Docker с Docker Compose. Из корня репозитория:
+
+```bash
+docker compose up --build
+```
+
+Поднимаются PostgreSQL и backend. Перед стартом backend автоматически применяет миграции.
+
+- API: http://localhost:3000
+- Swagger: http://localhost:3000/api/docs
+
+Настройки (пароль БД, JWT-секреты, порт и т.д.) можно переопределить в файле `.env` в корне — образец в `.env.example`. Без него используются значения по умолчанию.
+
+Данные БД и загруженные файлы хранятся в volumes `postgres_data` и `uploads` и не теряются при перезапуске. Остановить: `docker compose down`, остановить и удалить данные: `docker compose down -v`.
+
+Создать администратора (по желанию):
+
+```bash
+docker compose exec backend node dist/src/scripts/seed-admin.js
+```
+
 ## Основные ветки
 
 - `main` — стабильная, протестированная версия приложения (MVP). Прямой пуш запрещён. Мерж осуществляется только после прохождения всех тестов.
