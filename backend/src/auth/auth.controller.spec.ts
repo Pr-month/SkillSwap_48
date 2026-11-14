@@ -24,7 +24,7 @@ describe('AuthController', () => {
     password: 'password123',
     about: 'Немного о себе',
     birthdate: '1995-05-20',
-    city: 'Москва',
+    cityId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     gender: Gender.MALE,
   };
 

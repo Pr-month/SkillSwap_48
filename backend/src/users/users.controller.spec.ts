@@ -77,7 +77,7 @@ describe('UsersController', () => {
   it('updateMe passes the current user id and dto to the service', async () => {
     const dto: UpdateUserDto = {
       name: 'Новое имя',
-      city: 'Калининград',
+      cityId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     };
     const updatedUser = {
       ...user,
