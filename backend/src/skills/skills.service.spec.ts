@@ -28,6 +28,7 @@ describe('SkillsService', () => {
     save: jest.fn(),
     findAndCount: jest.fn(),
     findOne: jest.fn(),
+    find: jest.fn(),
     remove: jest.fn(),
   };
 
@@ -359,6 +360,7 @@ describe('SkillsService', () => {
         images: ['/public/uploads/a.png', '/public/uploads/b.png'],
       };
       skillsRepository.findOne.mockResolvedValue(skill);
+      skillsRepository.find.mockResolvedValue([]);
 
       await service.remove(skillId, userId);
 
@@ -367,10 +369,31 @@ describe('SkillsService', () => {
         relations: { owner: true },
       });
       expect(skillsRepository.remove).toHaveBeenCalledWith(skill);
-      expect(filesService.removeFiles).toHaveBeenCalledWith(skill.images);
+      expect(filesService.removeFiles).toHaveBeenCalledWith([
+        '/public/uploads/a.png',
+        '/public/uploads/b.png',
+      ]);
     });
 
-    it('uses an empty image array when the skill has no images', async () => {
+    it('does not delete images that are still used by other skills', async () => {
+      skillsRepository.findOne.mockResolvedValue({
+        id: skillId,
+        owner: { id: userId },
+        images: ['/public/uploads/a.png', '/public/uploads/b.png'],
+      });
+      // другой навык ссылается на a.png
+      skillsRepository.find.mockResolvedValue([
+        { id: 'other-skill', images: ['/public/uploads/a.png'] },
+      ]);
+
+      await service.remove(skillId, userId);
+
+      expect(filesService.removeFiles).toHaveBeenCalledWith([
+        '/public/uploads/b.png',
+      ]);
+    });
+
+    it('does not touch files when the skill has no images', async () => {
       skillsRepository.findOne.mockResolvedValue({
         id: skillId,
         owner: { id: userId },
@@ -379,7 +402,9 @@ describe('SkillsService', () => {
 
       await service.remove(skillId, userId);
 
-      expect(filesService.removeFiles).toHaveBeenCalledWith([]);
+      expect(skillsRepository.remove).toHaveBeenCalled();
+      expect(skillsRepository.find).not.toHaveBeenCalled();
+      expect(filesService.removeFiles).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when the skill does not exist', async () => {
