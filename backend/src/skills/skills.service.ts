@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ArrayOverlap, Repository } from 'typeorm';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
 import { GetSkillsDto } from './dto/get-skills.dto';
@@ -158,7 +158,22 @@ export class SkillsService {
       throw new ForbiddenException('Удалить можно только свой навык');
     }
     await this.skillsRepository.remove(skill);
-    await this.filesService.removeFiles(skill.images ?? []);
+
+    const images = skill.images ?? [];
+    if (images.length === 0) {
+      return;
+    }
+
+    // Файлы, на которые ссылаются другие навыки, не удаляем
+    const otherSkills = await this.skillsRepository.find({
+      select: { id: true, images: true },
+      where: { images: ArrayOverlap(images) },
+    });
+    const stillUsed = new Set(otherSkills.flatMap((s) => s.images ?? []));
+
+    await this.filesService.removeFiles(
+      images.filter((url) => !stillUsed.has(url)),
+    );
   }
 
   async addFavorite(skillId: string, userId: string): Promise<Skill> {
