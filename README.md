@@ -1,25 +1,72 @@
-# Добро пожаловать в проект SkillSwapAPI
+# SkillSwap API
+
+Backend сервиса обмена навыками SkillSwap: пользователи публикуют навыки, которым могут научить, и отправляют друг другу запросы на обмен.
 
 ## Документация
-[Техническое задание](https://docs.google.com/document/d/1d4o9Sb9o6lxXuqdEgKe4eRlH2s7gKrh0icJ3gyv2FD4/edit?tab=t.0#heading=h.ynonjn54b672) <br>
-[Макет](https://www.figma.com/design/bKwOakHJI7Z2mh2zVCBphP/SkillSwap---Для-разработчиков?node-id=0-1&p=f&t=HH7S4bYwVVtxLM6z-0)
 
-## Запуск в Docker
+- [Техническое задание](https://docs.google.com/document/d/1d4o9Sb9o6lxXuqdEgKe4eRlH2s7gKrh0icJ3gyv2FD4/edit?tab=t.0#heading=h.ynonjn54b672)
+- [Макет](https://www.figma.com/design/bKwOakHJI7Z2mh2zVCBphP/SkillSwap---Для-разработчиков?node-id=0-1&p=f&t=HH7S4bYwVVtxLM6z-0)
+- Swagger (после запуска): http://localhost:3000/api/docs
 
-Нужен установленный Docker с Docker Compose. Из корня репозитория:
+## Стек
+
+- NestJS 11, TypeScript
+- PostgreSQL 15, TypeORM (миграции)
+- JWT-аутентификация (access и refresh токены), Passport
+- Swagger, class-validator
+- Socket.IO (уведомления), загрузка файлов (multer)
+- Docker и Docker Compose
+- Jest (unit и e2e тесты)
+
+## Возможности
+
+- Регистрация, вход, обновление токенов, выход
+- Профиль пользователя, смена пароля, выбор города
+- Навыки: создание, просмотр, редактирование, удаление, избранное, похожие навыки
+- Категории и справочник городов
+- Запросы на обмен навыками (входящие, исходящие, смена статуса)
+- Загрузка изображений
+- Роли: пользователь и администратор
+
+## Быстрый старт (Docker)
+
+Нужны Docker и Docker Compose. Из корня репозитория:
+
+```bash
+cp .env.example .env
+```
+
+Заполните в `.env` обязательные переменные, без них `docker compose` не запустится:
+
+| Переменная | Описание |
+| --- | --- |
+| `POSTGRES_PASSWORD` | пароль БД (любой; значение со спецсимволами берите в одинарные кавычки) |
+| `JWT_ACCESS_SECRET` | секрет access-токена |
+| `JWT_REFRESH_SECRET` | секрет refresh-токена (отличается от access) |
+| `ADMIN_PASSWORD` | пароль администратора |
+
+Сгенерировать секрет:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+Остальные переменные (порт, сроки жизни токенов, `ADMIN_EMAIL` и др.) необязательны, значения по умолчанию указаны в `.env.example`.
+
+Запуск:
 
 ```bash
 docker compose up --build
 ```
 
-Поднимаются PostgreSQL и backend. Перед стартом backend автоматически применяет миграции.
+Поднимаются PostgreSQL и backend, миграции применяются автоматически.
 
 - API: http://localhost:3000
 - Swagger: http://localhost:3000/api/docs
 
-Настройки (пароль БД, JWT-секреты, порт и т.д.) можно переопределить в файле `.env` в корне — образец в `.env.example`. Без него используются значения по умолчанию.
+Данные БД и загруженные файлы хранятся в volumes `postgres_data` и `uploads`. Остановить: `docker compose down`, остановить и удалить данные: `docker compose down -v`.
 
-Данные БД и загруженные файлы хранятся в volumes `postgres_data` и `uploads` и не теряются при перезапуске. Остановить: `docker compose down`, остановить и удалить данные: `docker compose down -v`.
+Если вы меняли `POSTGRES_PASSWORD` после первого запуска, выполните `docker compose down -v`: БД запоминает пароль при создании.
 
 Создать администратора (по желанию):
 
@@ -27,103 +74,65 @@ docker compose up --build
 docker compose exec backend node dist/src/scripts/seed-admin.js
 ```
 
-## Основные ветки
+## Запуск без Docker (разработка)
 
-- `main` — стабильная, протестированная версия приложения (MVP). Прямой пуш запрещён. Мерж осуществляется только после прохождения всех тестов.
-- `dev` — общая ветка разработки. Содержит актуальные изменения и обновляется по завершению недельных итераций.
-
----
-
-## Недельный процесс разработки
-
-Каждая неделя работы оформляется отдельной веткой `weekN`, которая создаётся от `dev`. Эта ветка включает:
-
-- все инфраструктурные изменения (например, настройку базы данных, логгера, .env),
-- pull request'ы студентов за текущую неделю.
-
-### Шаги:
-
-#### 1. Создание ветки недели (выполняется наставником)
+Нужны Node.js 20+ и PostgreSQL. Подробная инструкция по базе: `backend/docs/database-setup.md`.
 
 ```bash
-git checkout dev
-git pull origin dev
-git checkout -b week1
-git push origin week1
+cd backend
+cp .env.example .env     # заполните JWT-секреты, ADMIN_PASSWORD и параметры БД
+npm ci
+npm run migration:run
+npm run start:dev
 ```
 
-В эту ветку добавляются инфраструктурные изменения. Они могут быть оформлены через отдельный PR или пушем напрямую.
+Подключение к БД задаётся одной строкой `LOCAL_DATABASE_URL` либо отдельными переменными `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` (удобнее, если в пароле есть спецсимволы). Режим `DB_MODE=supabase` использует `DATABASE_URL`.
 
-#### 2. Работа студентов
+Полезные команды (из папки `backend`):
 
-Каждый студент создаёт персональную ветку от `week1`:
+| Команда | Назначение |
+| --- | --- |
+| `npm run start:dev` | запуск с автоперезагрузкой |
+| `npm run build` | сборка |
+| `npm run migration:run` | применить миграции |
+| `npm run migration:generate -- src/migrations/Name` | сгенерировать миграцию по изменениям сущностей |
+| `npm run migration:revert` | откатить последнюю миграцию |
+| `npm run seed:admin` | создать администратора |
+| `npm run seed:cities` | загрузить справочник городов |
+
+## Тесты
 
 ```bash
-git checkout week1
-git pull origin week1
-git checkout -b week1-username
-git push origin week1-username
+cd backend
+npm run test        # unit-тесты
+npm run test:e2e    # e2e-тесты, нужна БД (см. .env.test.local.example)
+npm run lint        # линтер
 ```
 
-Работа выполняется в этой ветке.
+## Структура
 
-#### 3. Отправка на проверку
-
-В конце недели создаётся pull request из `week1-username` в `week1`.
-
-После прохождения линтера и ревью изменения мержатся в `week1`.
-
-#### 4. Финальный мерж недели
-
-После завершения всех PR в `week1`, наставник мержит `week1` в `dev`:
-
-```bash
-git checkout dev
-git pull origin dev
-git merge week1
-git push origin dev
+```
+.
+├── docker-compose.yml     # PostgreSQL + backend
+├── .env.example           # переменные для docker compose
+└── backend/
+    ├── src/
+    │   ├── auth/          # регистрация, вход, токены
+    │   ├── users/         # профиль пользователя
+    │   ├── skills/        # навыки, избранное
+    │   ├── categories/    # категории
+    │   ├── cities/        # города
+    │   ├── requests/      # запросы на обмен
+    │   ├── files/         # загрузка файлов
+    │   ├── notifications/ # WebSocket-уведомления
+    │   ├── migrations/    # миграции БД
+    │   └── scripts/       # seed-скрипты
+    └── test/              # e2e-тесты
 ```
 
----
+## Разработка и CI
 
-## Политика веток и CI
-
-- Прямой пуш в `main` и `dev` запрещён.
-- Все изменения происходят через pull request'ы.
-- Ветка `main` запускает полный набор проверок:
-  - `lint`
-  - `unit тесты`
-  - `e2e тесты`
-- В остальных ветках запускается только `lint`.
-
----
-
-## CI-проверки
-
-- Для PR в `main` — полный набор тестов.
-- Для всех остальных веток — только линтер (`npm run lint`).
-
----
-
-## Обновление локальных веток
-
-После мержей студенты обновляют свои ветки при необходимости:
-
-```bash
-git checkout week1-username
-git pull origin week1
-```
-
----
-
-## Пример именования веток
-
-- Ветка недели: `week1`
-- Ветка студента: `week1-johndoe`
-
----
-
-## Проверка заданий
-
-- Ревью проводится по pull request'ам в ветку `weekN`.
-- Итоговый merge недели осуществляется наставником в ветку `dev`.
+- `main` — стабильная версия, прямой пуш запрещён, мерж после полного набора проверок (lint, unit, e2e).
+- `dev` — общая ветка разработки.
+- Каждая задача делается в отдельной ветке от `dev` и вливается через pull request.
+- В pull request'ах запускаются линтер и проверка production-сборки; unit и e2e тесты запускаются для PR в `main`.
