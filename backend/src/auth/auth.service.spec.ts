@@ -12,6 +12,7 @@ import { AuthService } from './auth.service';
 import type { JwtPayload } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { City } from '../cities/entities/city.entity';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -30,7 +31,7 @@ describe('AuthService', () => {
     password: 'password123',
     about: 'Немного о себе',
     birthdate: '1995-05-20',
-    city: 'Москва',
+    cityId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     gender: Gender.MALE,
   };
 
@@ -38,6 +39,8 @@ describe('AuthService', () => {
     email: 'User@Example.com',
     password: 'password123',
   };
+
+  const citiesRepository = { findOne: jest.fn() };
 
   beforeEach(async () => {
     signAsync = jest.fn().mockResolvedValue('token');
@@ -53,6 +56,7 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: getRepositoryToken(User), useValue: usersRepository },
+        { provide: getRepositoryToken(City), useValue: citiesRepository },
         { provide: JwtService, useValue: { signAsync, decode } },
         {
           provide: jwtConfig.KEY,
@@ -69,6 +73,11 @@ describe('AuthService', () => {
         },
       ],
     }).compile();
+
+    citiesRepository.findOne.mockResolvedValue({
+      id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      name: 'Москва',
+    } as City);
 
     service = module.get<AuthService>(AuthService);
   });
@@ -150,7 +159,7 @@ describe('AuthService', () => {
       name: 'Иван',
       about: 'Немного о себе',
       birthdate: '1995-05-20',
-      city: 'Москва',
+      city: null,
       gender: Gender.MALE,
       avatar: '',
       role: UserRole.USER,
@@ -160,18 +169,7 @@ describe('AuthService', () => {
 
     expect(usersRepository.findOne).toHaveBeenCalledWith({
       where: { email: 'user@example.com' },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-        name: true,
-        about: true,
-        birthdate: true,
-        city: true,
-        gender: true,
-        avatar: true,
-        role: true,
-      },
+      relations: { city: true },
     });
     expect(usersRepository.update).toHaveBeenCalledTimes(1);
     expect(result.accessToken).toBe('token');

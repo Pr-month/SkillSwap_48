@@ -18,6 +18,7 @@ describe('GET /cities/:id', () => {
     lat: null,
     lon: null,
     population: 13000000,
+    users: []
   };
 
   beforeAll(async () => {

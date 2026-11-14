@@ -9,7 +9,6 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { In } from 'typeorm';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { Skill } from '../skills/entities/skill.entity';
-import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { Request } from './entities/request.entity';
 import { RequestStatus } from './requests.enums';
 import { RequestsService } from './requests.service';

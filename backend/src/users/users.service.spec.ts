@@ -11,6 +11,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { Gender, UserRole } from './users.enums';
 import { UsersService } from './users.service';
+import { City } from '../cities/entities/city.entity';
 
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
@@ -38,6 +39,8 @@ describe('UsersService', () => {
     save: jest.fn(),
   };
 
+  const citiesRepository = { findOne: jest.fn() };
+
   const config: TAppConfig = {
     port: 3000,
     hashSalt: 10,
@@ -51,7 +54,7 @@ describe('UsersService', () => {
     password: 'old-password-hash',
     about: 'О пользователе',
     birthdate: '1995-05-15',
-    city: 'Москва',
+    city: null,
     gender: Gender.FEMALE,
     avatar: '',
     skills: [],
@@ -71,6 +74,10 @@ describe('UsersService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: usersRepository,
+        },
+        {
+          provide: getRepositoryToken(City),
+          useValue: citiesRepository,
         },
         {
           provide: appConfig.KEY,
@@ -94,17 +101,7 @@ describe('UsersService', () => {
       const result = await service.findAll();
 
       expect(usersRepository.find).toHaveBeenCalledWith({
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          about: true,
-          birthdate: true,
-          city: true,
-          gender: true,
-          avatar: true,
-          role: true,
-        },
+        relations: { city: true },
       });
       expect(result).toBe(users);
     });
@@ -119,6 +116,7 @@ describe('UsersService', () => {
 
       expect(usersRepository.findOne).toHaveBeenCalledWith({
         where: { id: user.id },
+        relations: { city: true },
       });
       expect(result).toBe(user);
     });
@@ -135,24 +133,25 @@ describe('UsersService', () => {
   describe('updateMe', () => {
     it('updates and saves the current user', async () => {
       const user = createUser();
-      const dto: UpdateUserDto = {
-        name: 'Новое имя',
-        city: 'Калининград',
-      };
-      const savedUser = {
-        ...user,
-        ...dto,
-      };
+      const cityId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+      const city = { id: cityId, name: 'Москва' } as City;
+      const dto: UpdateUserDto = { name: 'Новое имя', cityId };
+      const savedUser = { ...user, name: 'Новое имя', city };
 
       usersRepository.findOne.mockResolvedValue(user);
+      citiesRepository.findOne.mockResolvedValue(city);
       usersRepository.save.mockResolvedValue(savedUser);
 
       const result = await service.updateMe(user.id, dto);
 
       expect(usersRepository.findOne).toHaveBeenCalledWith({
         where: { id: user.id },
+        relations: { city: true },
       });
-      expect(user).toMatchObject(dto);
+      expect(citiesRepository.findOne).toHaveBeenCalledWith({
+        where: { id: cityId },
+      });
+      expect(user).toMatchObject({ name: 'Новое имя', city });
       expect(usersRepository.save).toHaveBeenCalledWith(user);
       expect(result).toBe(savedUser);
     });
